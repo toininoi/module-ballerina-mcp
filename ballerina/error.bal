@@ -85,3 +85,7 @@ public type ServerError distinct Error;
 
 # Custom error type for dispatcher service operations.
 type DispatcherError distinct ServerError;
+
+# Error for failures while binding tool parameters from the incoming request,
+# such as missing or invalid header values.
+public type ParameterBindingError distinct ServerError;

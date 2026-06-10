@@ -280,10 +280,13 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                 session = sessionId is string ? self.sessionMap[sessionId] : ();
             }
 
-            CallToolResult|error callToolResult = self.executeOnCallTool(params, session, headers);
+            CallToolResult|error callToolResult = self.executeOnCallTool(params, session, headers,
+                    serviceConfig.httpConfig.treatNilableAsOptional);
             if callToolResult is error {
+                // Parameter binding failures are caller errors, reported as invalid params
+                int errorCode = callToolResult is ParameterBindingError ? INVALID_PARAMS : INTERNAL_ERROR;
                 return <http:BadRequest>{
-                    body: createJsonRpcError(INTERNAL_ERROR,
+                    body: createJsonRpcError(errorCode,
                             string `Failed to call tool '${params.name}': ${callToolResult.message()}`, request.id)
                 };
             }
@@ -320,15 +323,18 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             return error DispatcherError("MCP Service is not attached");
         }
 
-        private isolated function executeOnCallTool(CallToolParams params, Session? session, http:Headers headers)
-                returns CallToolResult|Error {
+        private isolated function executeOnCallTool(CallToolParams params, Session? session, http:Headers headers,
+                boolean treatNilableAsOptional) returns CallToolResult|Error {
             Service|AdvancedService mcpService = check getMcpServiceFromDispatcher(self);
             if mcpService is AdvancedService {
                 return invokeOnCallTool(mcpService, params.cloneReadOnly(), session);
             }
             if mcpService is Service {
                 CallToolResult|error result = callToolForRemoteFunctions(mcpService, params.cloneReadOnly(), session,
-                        headers);
+                        headers, extractHeaderValues(headers), treatNilableAsOptional);
+                if result is ParameterBindingError {
+                    return result;
+                }
                 if result is error {
                     return error DispatcherError(result.message());
                 }

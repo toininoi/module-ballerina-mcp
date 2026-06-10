@@ -20,14 +20,19 @@ package io.ballerina.stdlib.mcp.plugin;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
+import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
 import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.Documentable;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
+import io.ballerina.compiler.api.symbols.IntersectionTypeSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
+import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
+import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
@@ -54,6 +59,7 @@ import java.util.Optional;
  * Util class for the compiler plugin.
  */
 public class Utils {
+
     public static final String BALLERINA_ORG = "ballerina";
     public static final String TOOL_ANNOTATION_NAME = "Tool";
     public static final String MCP_PACKAGE_NAME = "mcp";
@@ -61,6 +67,7 @@ public class Utils {
     public static final String SESSION_TYPE_NAME = "Session";
     public static final String HTTP_PACKAGE_NAME = "http";
     public static final String HEADERS_TYPE_NAME = "Headers";
+    public static final String HEADER_ANNOTATION_NAME = "Header";
     public static final String UNKNOWN_SYMBOL = "unknown";
     public static final String SERVICE_CONFIG_ANNOTATION_NAME = "ServiceConfig";
     public static final String SESSION_MODE_FIELD = "sessionMode";
@@ -128,7 +135,6 @@ public class Utils {
     public static String escapeDoubleQuotes(String input) {
         return input.replace("\"", "\\\"");
     }
-
 
     public static String addDoubleQuotes(String input) {
         return "\"" + input + "\"";
@@ -199,6 +205,18 @@ public class Utils {
 
             boolean isSessionType = isSessionType(parameterType);
 
+            if (hasHttpHeaderAnnotation(parameterSymbol)) {
+                if (!isValidHeaderParamType(parameterType, context)) {
+                    Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                            CompilationDiagnostic.INVALID_HEADER_PARAMETER_TYPE,
+                            parameterSymbol.getLocation().orElse(alternativeLocation),
+                            functionName, parameterName);
+                    context.reportDiagnostic(diagnostic);
+                    return false;
+                }
+                continue;
+            }
+
             if (isHttpHeadersType(parameterType)) {
                 if (hasHeadersParam) {
                     Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
@@ -261,6 +279,91 @@ public class Utils {
                 && typeSymbol.getModule().isPresent()
                 && HTTP_PACKAGE_NAME.equals(typeSymbol.getModule().get().id().moduleName())
                 && BALLERINA_ORG.equals(typeSymbol.getModule().get().id().orgName());
+    }
+
+    static boolean hasHttpHeaderAnnotation(ParameterSymbol parameterSymbol) {
+        return parameterSymbol.annotations().stream()
+                .anyMatch(annotation -> HEADER_ANNOTATION_NAME.equals(annotation.getName().orElse(""))
+                        && annotation.getModule().isPresent()
+                        && HTTP_PACKAGE_NAME.equals(annotation.getModule().get().id().moduleName())
+                        && BALLERINA_ORG.equals(annotation.getModule().get().id().orgName()));
+    }
+
+    /**
+     * Validates the type of a '@http:Header' annotated parameter consistently with http services: 'string', 'int',
+     * 'float', 'decimal', 'boolean', arrays of those types, their nilable variants, or a closed record consisting of
+     * those types.
+     */
+    static boolean isValidHeaderParamType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
+        if (isValidHeaderValueType(typeSymbol, context)) {
+            return true;
+        }
+        TypeSymbol rawType = getRawType(getNonNilType(typeSymbol));
+        if (rawType instanceof RecordTypeSymbol recordTypeSymbol) {
+            if (recordTypeSymbol.restTypeDescriptor().isPresent()) {
+                return false;
+            }
+            return recordTypeSymbol.fieldDescriptors().values().stream()
+                    .allMatch(field -> isValidHeaderValueType(field.typeDescriptor(), context));
+        }
+        return false;
+    }
+
+    private static boolean isValidHeaderValueType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
+        TypeSymbol rawType = getRawType(typeSymbol);
+        if (rawType.typeKind() == TypeDescKind.UNION) {
+            // Consistent with http: a union is valid only when all its non-nil members share
+            // a single basic type (covers nilable variants, enums, and finite string unions)
+            var nonNilMembers = ((UnionTypeSymbol) rawType).memberTypeDescriptors().stream()
+                    .filter(member -> member.typeKind() != TypeDescKind.NIL)
+                    .toList();
+            if (nonNilMembers.isEmpty()) {
+                return false;
+            }
+            if (nonNilMembers.size() == 1) {
+                return isValidHeaderValueType(nonNilMembers.getFirst(), context);
+            }
+            var types = context.semanticModel().types();
+            for (TypeSymbol basicType : new TypeSymbol[]{types.STRING, types.INT, types.FLOAT,
+                    types.DECIMAL, types.BOOLEAN}) {
+                if (nonNilMembers.stream().allMatch(member -> member.subtypeOf(basicType))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (rawType.typeKind() == TypeDescKind.ARRAY) {
+            return isValidHeaderValueType(((ArrayTypeSymbol) rawType).memberTypeDescriptor(), context);
+        }
+        return isBasicType(rawType, context);
+    }
+
+    private static boolean isBasicType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
+        var types = context.semanticModel().types();
+        TypeSymbol rawType = getRawType(typeSymbol);
+        return rawType.subtypeOf(types.STRING) || rawType.subtypeOf(types.INT)
+                || rawType.subtypeOf(types.FLOAT) || rawType.subtypeOf(types.DECIMAL)
+                || rawType.subtypeOf(types.BOOLEAN);
+    }
+
+    private static TypeSymbol getNonNilType(TypeSymbol typeSymbol) {
+        TypeSymbol rawType = getRawType(typeSymbol);
+        if (rawType.typeKind() != TypeDescKind.UNION) {
+            return typeSymbol;
+        }
+        var nonNilMembers = ((UnionTypeSymbol) rawType).memberTypeDescriptors().stream()
+                .filter(member -> member.typeKind() != TypeDescKind.NIL)
+                .toList();
+        return nonNilMembers.size() == 1 ? nonNilMembers.get(0) : typeSymbol;
+    }
+
+    private static TypeSymbol getRawType(TypeSymbol typeSymbol) {
+        if (typeSymbol.typeKind() == TypeDescKind.INTERSECTION) {
+            return getRawType(((IntersectionTypeSymbol) typeSymbol).effectiveTypeDescriptor());
+        }
+        return typeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE
+                ? getRawType(((TypeReferenceTypeSymbol) typeSymbol).typeDescriptor())
+                : typeSymbol;
     }
 
     private static SessionMode getSessionMode(FunctionDefinitionNode functionDefinitionNode,

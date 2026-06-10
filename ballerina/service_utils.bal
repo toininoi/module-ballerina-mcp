@@ -40,6 +40,22 @@ isolated function getSessionIdFromHeaders(http:Headers headers) returns string? 
     return sessionHeader is string ? sessionHeader : ();
 }
 
+# Extracts all header values into a map keyed by lower-cased header name,
+# used for binding `@mcp:Header` annotated tool parameters.
+#
+# + headers - HTTP headers of the request
+# + return - Map of header values keyed by lower-cased header name
+isolated function extractHeaderValues(http:Headers headers) returns map<string[]> {
+    map<string[]> headerValues = {};
+    foreach string headerName in headers.getHeaderNames() {
+        string[]|http:HeaderNotFoundError values = headers.getHeaders(headerName);
+        if values is string[] {
+            headerValues[headerName.toLowerAscii()] = values;
+        }
+    }
+    return headerValues;
+}
+
 # Determines the effective session mode based on configuration and request context.
 #
 # + config - Service configuration

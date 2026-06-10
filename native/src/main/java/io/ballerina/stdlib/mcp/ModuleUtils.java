@@ -44,4 +44,8 @@ public final class ModuleUtils {
     public static BError createError(String errorMessage) {
         return ErrorCreator.createError(fromString(errorMessage));
     }
+
+    public static BError createParameterBindingError(String errorMessage) {
+        return ErrorCreator.createError(module, "ParameterBindingError", fromString(errorMessage), null, null);
+    }
 }
