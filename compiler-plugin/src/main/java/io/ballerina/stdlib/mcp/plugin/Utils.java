@@ -59,6 +59,8 @@ public class Utils {
     public static final String MCP_PACKAGE_NAME = "mcp";
     public static final String MCP_BASIC_SERVICE_NAME = "Service";
     public static final String SESSION_TYPE_NAME = "Session";
+    public static final String HTTP_PACKAGE_NAME = "http";
+    public static final String HEADERS_TYPE_NAME = "Headers";
     public static final String UNKNOWN_SYMBOL = "unknown";
     public static final String SERVICE_CONFIG_ANNOTATION_NAME = "ServiceConfig";
     public static final String SESSION_MODE_FIELD = "sessionMode";
@@ -188,6 +190,7 @@ public class Utils {
 
         var parameterSymbolList = functionTypeSymbol.params().get();
         boolean hasSessionParam = false;
+        boolean hasHeadersParam = false;
 
         for (int i = 0; i < parameterSymbolList.size(); i++) {
             ParameterSymbol parameterSymbol = parameterSymbolList.get(i);
@@ -196,7 +199,17 @@ public class Utils {
 
             boolean isSessionType = isSessionType(parameterType);
 
-            if (isSessionType) {
+            if (isHttpHeadersType(parameterType)) {
+                if (hasHeadersParam) {
+                    Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                            CompilationDiagnostic.DUPLICATE_HEADERS_PARAM,
+                            parameterSymbol.getLocation().orElse(alternativeLocation),
+                            functionName, parameterName);
+                    context.reportDiagnostic(diagnostic);
+                    return false;
+                }
+                hasHeadersParam = true;
+            } else if (isSessionType) {
                 if (hasSessionParam) {
                     Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
                             CompilationDiagnostic.SESSION_PARAM_MUST_BE_FIRST,
@@ -241,6 +254,13 @@ public class Utils {
     static boolean isSessionType(TypeSymbol typeSymbol) {
         return SESSION_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
                 && isMcpModuleSymbol(typeSymbol);
+    }
+
+    static boolean isHttpHeadersType(TypeSymbol typeSymbol) {
+        return HEADERS_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
+                && typeSymbol.getModule().isPresent()
+                && HTTP_PACKAGE_NAME.equals(typeSymbol.getModule().get().id().moduleName())
+                && BALLERINA_ORG.equals(typeSymbol.getModule().get().id().orgName());
     }
 
     private static SessionMode getSessionMode(FunctionDefinitionNode functionDefinitionNode,

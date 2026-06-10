@@ -67,6 +67,10 @@ public final class McpServiceMethodHelper {
     private static final String MCP_PACKAGE_NAME = "mcp";
     private static final String SESSION_TYPE_NAME = "Session";
 
+    // HTTP Headers-related constants
+    private static final String HTTP_PACKAGE_NAME = "http";
+    private static final String HEADERS_TYPE_NAME = "Headers";
+
     private McpServiceMethodHelper() {}
 
     /**
@@ -128,7 +132,7 @@ public final class McpServiceMethodHelper {
      * @return           Record containing the invocation result or an error.
      */
     public static Object callToolForRemoteFunctions(Environment env, BObject mcpService, BMap<?, ?> params,
-                                                    Object session, BTypedesc typed) {
+                                                    Object session, BObject headers, BTypedesc typed) {
         BString toolName = (BString) params.get(fromString(NAME_FIELD_NAME));
 
         Optional<RemoteMethodType> method = getRemoteMethods(mcpService).stream()
@@ -141,7 +145,8 @@ public final class McpServiceMethodHelper {
         }
 
         Object argsOrError =
-                buildArgsForMethod(method.get(), (BMap<?, ?>) params.get(fromString(ARGUMENTS_FIELD_NAME)), session);
+                buildArgsForMethod(method.get(), (BMap<?, ?>) params.get(fromString(ARGUMENTS_FIELD_NAME)), session,
+                        headers);
 
         if (argsOrError instanceof BError) {
             return argsOrError;
@@ -203,7 +208,8 @@ public final class McpServiceMethodHelper {
         return tool;
     }
 
-    private static Object buildArgsForMethod(RemoteMethodType method, BMap<?, ?> arguments, Object session) {
+    private static Object buildArgsForMethod(RemoteMethodType method, BMap<?, ?> arguments, Object session,
+                                             Object headers) {
         List<Parameter> params = List.of(method.getParameters());
         Object[] args = new Object[params.size()];
         for (int i = 0; i < params.size(); i++) {
@@ -211,6 +217,8 @@ public final class McpServiceMethodHelper {
 
             if (isSessionParameter(param)) {
                 args[i] = session;
+            } else if (isHeadersParameter(param)) {
+                args[i] = headers;
             } else {
                 String paramName = param.name;
                 Object argValue = arguments == null ? null : arguments.get(fromString(paramName));
@@ -244,6 +252,13 @@ public final class McpServiceMethodHelper {
         return paramType.getPackage() != null
                 && MCP_PACKAGE_NAME.equals(paramType.getPackage().getName())
                 && SESSION_TYPE_NAME.equals(paramType.getName());
+    }
+
+    private static boolean isHeadersParameter(Parameter param) {
+        Type paramType = param.type;
+        return paramType.getPackage() != null
+                && HTTP_PACKAGE_NAME.equals(paramType.getPackage().getName())
+                && HEADERS_TYPE_NAME.equals(paramType.getName());
     }
 
     private static Object createCallToolResult(BTypedesc typed, Object result) {

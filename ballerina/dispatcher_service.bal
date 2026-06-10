@@ -280,7 +280,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                 session = sessionId is string ? self.sessionMap[sessionId] : ();
             }
 
-            CallToolResult|error callToolResult = self.executeOnCallTool(params, session);
+            CallToolResult|error callToolResult = self.executeOnCallTool(params, session, headers);
             if callToolResult is error {
                 return <http:BadRequest>{
                     body: createJsonRpcError(INTERNAL_ERROR,
@@ -320,14 +320,15 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             return error DispatcherError("MCP Service is not attached");
         }
 
-        private isolated function executeOnCallTool(CallToolParams params, Session? session)
+        private isolated function executeOnCallTool(CallToolParams params, Session? session, http:Headers headers)
                 returns CallToolResult|Error {
             Service|AdvancedService mcpService = check getMcpServiceFromDispatcher(self);
             if mcpService is AdvancedService {
                 return invokeOnCallTool(mcpService, params.cloneReadOnly(), session);
             }
             if mcpService is Service {
-                CallToolResult|error result = callToolForRemoteFunctions(mcpService, params.cloneReadOnly(), session);
+                CallToolResult|error result = callToolForRemoteFunctions(mcpService, params.cloneReadOnly(), session,
+                        headers);
                 if result is error {
                     return error DispatcherError(result.message());
                 }
