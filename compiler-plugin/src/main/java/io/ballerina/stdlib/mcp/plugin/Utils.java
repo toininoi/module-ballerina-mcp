@@ -64,12 +64,14 @@ public class Utils {
     public static final String TOOL_ANNOTATION_NAME = "Tool";
     public static final String MCP_PACKAGE_NAME = "mcp";
     public static final String MCP_BASIC_SERVICE_NAME = "Service";
+    public static final String STREAMABLE_HTTP_BASIC_SERVICE_NAME = "StreamableHttpService";
     public static final String SESSION_TYPE_NAME = "Session";
     public static final String HTTP_PACKAGE_NAME = "http";
     public static final String HEADERS_TYPE_NAME = "Headers";
     public static final String HEADER_ANNOTATION_NAME = "Header";
     public static final String UNKNOWN_SYMBOL = "unknown";
     public static final String SERVICE_CONFIG_ANNOTATION_NAME = "ServiceConfig";
+    public static final String STREAMABLE_HTTP_SERVICE_CONFIG_ANNOTATION_NAME = "StreamableHttpServiceConfig";
     public static final String SESSION_MODE_FIELD = "sessionMode";
 
     public enum SessionMode {
@@ -172,10 +174,28 @@ public class Utils {
                 .anyMatch(Utils::isListenerFromMcpModule);
 
         boolean isServiceType = serviceSymbol.typeDescriptor()
-                .flatMap(type -> type.getName().map(MCP_BASIC_SERVICE_NAME::equals))
+                .flatMap(TypeSymbol::getName)
+                .map(name -> MCP_BASIC_SERVICE_NAME.equals(name)
+                        || STREAMABLE_HTTP_BASIC_SERVICE_NAME.equals(name))
                 .orElse(false);
 
         return isFromMcpModule && isServiceType;
+    }
+
+    /**
+     * Returns whether the service enclosing the given remote function is an `mcp:StreamableHttpService` — the only
+     * basic service type whose tools may bind transport-specific (HTTP) request information.
+     */
+    static boolean isStreamableHttpService(FunctionDefinitionNode functionDefinitionNode,
+                                           SemanticModel semanticModel) {
+        Optional<Symbol> parentSymbol = semanticModel.symbol(functionDefinitionNode.parent());
+        if (parentSymbol.isEmpty() || parentSymbol.get().kind() != SymbolKind.SERVICE_DECLARATION) {
+            return false;
+        }
+        return ((ServiceDeclarationSymbol) parentSymbol.get()).typeDescriptor()
+                .flatMap(TypeSymbol::getName)
+                .map(STREAMABLE_HTTP_BASIC_SERVICE_NAME::equals)
+                .orElse(false);
     }
 
     public static boolean isAnydataType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
@@ -204,6 +224,20 @@ public class Utils {
             String parameterName = parameterSymbol.getName().orElse(UNKNOWN_SYMBOL);
 
             boolean isSessionType = isSessionType(parameterType);
+
+            // Header binding and http:Headers parameters expose transport-specific (HTTP)
+            // request information, so they are only allowed in an mcp:StreamableHttpService.
+            // (The type system separately guarantees an mcp:StreamableHttpService can only be
+            // attached to an mcp:StreamableHttpListener.)
+            boolean isHttpBoundParam = hasHttpHeaderAnnotation(parameterSymbol) || isHttpHeadersType(parameterType);
+            if (isHttpBoundParam && !isStreamableHttpService(functionDefinitionNode, context.semanticModel())) {
+                Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                        CompilationDiagnostic.TRANSPORT_SPECIFIC_PARAM_NOT_ALLOWED,
+                        parameterSymbol.getLocation().orElse(alternativeLocation),
+                        functionName, parameterName);
+                context.reportDiagnostic(diagnostic);
+                return false;
+            }
 
             if (hasHttpHeaderAnnotation(parameterSymbol)) {
                 if (!isValidHeaderParamType(parameterType, context)) {
@@ -373,20 +407,36 @@ public class Utils {
             return SessionMode.AUTO;
         }
 
-        // Find the MCP ServiceConfig annotation
-        AnnotationNode serviceConfigAnnotation = null;
-        for (AnnotationNode annotation : serviceNode.metadata().get().annotations()) {
-            if (isMcpServiceConfigAnnotation(annotation)) {
-                serviceConfigAnnotation = annotation;
-                break;
-            }
+        // The transport-specific @mcp:StreamableHttpConfig annotation takes precedence over
+        // the deprecated sessionMode field of @mcp:ServiceConfig
+        AnnotationNode transportConfigAnnotation =
+                findMcpAnnotation(serviceNode, STREAMABLE_HTTP_SERVICE_CONFIG_ANNOTATION_NAME);
+        if (transportConfigAnnotation != null) {
+            return getSessionModeFieldValue(transportConfigAnnotation, semanticModel);
         }
 
-        if (serviceConfigAnnotation == null || serviceConfigAnnotation.annotValue().isEmpty()) {
+        AnnotationNode serviceConfigAnnotation = findMcpAnnotation(serviceNode, SERVICE_CONFIG_ANNOTATION_NAME);
+        if (serviceConfigAnnotation != null) {
+            return getSessionModeFieldValue(serviceConfigAnnotation, semanticModel);
+        }
+        return SessionMode.AUTO;
+    }
+
+    private static AnnotationNode findMcpAnnotation(ServiceDeclarationNode serviceNode, String annotationName) {
+        for (AnnotationNode annotation : serviceNode.metadata().get().annotations()) {
+            if (isMcpAnnotation(annotation, annotationName)) {
+                return annotation;
+            }
+        }
+        return null;
+    }
+
+    private static SessionMode getSessionModeFieldValue(AnnotationNode annotationNode, SemanticModel semanticModel) {
+        if (annotationNode.annotValue().isEmpty()) {
             return SessionMode.AUTO;
         }
 
-        SeparatedNodeList<MappingFieldNode> fields = serviceConfigAnnotation.annotValue().get().fields();
+        SeparatedNodeList<MappingFieldNode> fields = annotationNode.annotValue().get().fields();
         for (MappingFieldNode field : fields) {
             if (field.kind() == SyntaxKind.SPECIFIC_FIELD) {
                 SpecificFieldNode specificField = (SpecificFieldNode) field;
@@ -432,7 +482,7 @@ public class Utils {
         return SessionMode.AUTO;
     }
 
-    private static boolean isMcpServiceConfigAnnotation(AnnotationNode annotation) {
+    private static boolean isMcpAnnotation(AnnotationNode annotation, String annotationName) {
         if (annotation.annotReference().kind() != SyntaxKind.QUALIFIED_NAME_REFERENCE) {
             return false;
         }
@@ -441,7 +491,7 @@ public class Utils {
         String modulePrefix = qualifiedRef.modulePrefix().text();
         String identifier = qualifiedRef.identifier().text();
 
-        return MCP_PACKAGE_NAME.equals(modulePrefix) && SERVICE_CONFIG_ANNOTATION_NAME.equals(identifier);
+        return MCP_PACKAGE_NAME.equals(modulePrefix) && annotationName.equals(identifier);
     }
 
     private static boolean isListenerFromMcpModule(TypeSymbol typeSymbol) {

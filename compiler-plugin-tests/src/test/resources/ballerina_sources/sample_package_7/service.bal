@@ -14,22 +14,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/http;
 import ballerina/mcp;
 
-// Header binding records must not have rest fields (MCP_106).
-type OpenHeaders record {|
-    string authorization;
-    string...;
-|};
-
+// sessionMode declared via the transport-specific @mcp:StreamableHttpServiceConfig annotation
+// must be honored by the plugin: a Session parameter under STATELESS is an error (MCP_104).
 @mcp:StreamableHttpServiceConfig {
-    info: {name: "sample-3", version: "1.0.0"}
+    info: {name: "sample-7", version: "1.0.0"},
+    sessionMode: mcp:STATELESS
 }
-service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9303) {
+service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9307) {
 
-    @mcp:Tool {description: "header record with rest field"}
-    remote function badRecord(@http:Header OpenHeaders hdrs) returns string {
-        return hdrs.authorization;
+    @mcp:Tool {description: "session param under stateless transport config"}
+    remote function badSession(mcp:Session session, string name) returns string {
+        return name;
     }
 }

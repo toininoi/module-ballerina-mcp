@@ -114,6 +114,22 @@ public final class McpServiceMethodHelper {
     }
 
     /**
+     * Invoke the 'onCallTool' remote method of a Streamable HTTP advanced service, additionally
+     * passing the request's HTTP headers.
+     *
+     * @param env        The Ballerina runtime environment.
+     * @param mcpService The MCP service object.
+     * @param params     Parameters for the tool invocation.
+     * @param session    The session object (or null).
+     * @param headers    The HTTP headers of the request.
+     * @return           Result of remote method invocation.
+     */
+    public static Object invokeOnCallToolWithHeaders(Environment env, BObject mcpService, BMap<?, ?> params,
+                                                     Object session, BObject headers) {
+        return env.getRuntime().callMethod(mcpService, "onCallTool", null, params, session, headers);
+    }
+
+    /**
      * Lists tool metadata for remote functions in the given MCP service.
      *
      * @param mcpService The MCP service object.

@@ -18,10 +18,10 @@ import ballerina/http;
 import ballerina/mcp;
 
 // A union of two distinct basic types is not a valid header parameter type (MCP_106).
-@mcp:ServiceConfig {
+@mcp:StreamableHttpServiceConfig {
     info: {name: "sample-2", version: "1.0.0"}
 }
-service mcp:Service /mcp on new mcp:Listener(9302) {
+service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9302) {
 
     @mcp:Tool {description: "invalid union header type"}
     remote function badUnion(@http:Header string|int mixed) returns string {

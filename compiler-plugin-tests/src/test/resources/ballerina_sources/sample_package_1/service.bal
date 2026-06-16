@@ -29,11 +29,12 @@ type CallerHeaders record {|
     string[] accept?;
 |};
 
-// Every supported @http:Header parameter shape must compile without diagnostics.
-@mcp:ServiceConfig {
+// Every supported @http:Header parameter shape must compile without diagnostics on an
+// mcp:StreamableHttpService.
+@mcp:StreamableHttpServiceConfig {
     info: {name: "sample-1", version: "1.0.0"}
 }
-service mcp:Service /mcp on new mcp:Listener(9301) {
+service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9301) {
 
     @mcp:Tool {description: "single header bound by parameter name"}
     remote function tString(@http:Header string authorization, string name) returns string {

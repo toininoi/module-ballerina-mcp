@@ -35,7 +35,8 @@ public enum CompilationDiagnostic {
     SESSION_PARAM_MUST_BE_FIRST(DiagnosticMessage.ERROR_103, DiagnosticCode.MCP_103, ERROR),
     SESSION_PARAM_NOT_ALLOWED_IN_STATELESS_MODE(DiagnosticMessage.ERROR_104, DiagnosticCode.MCP_104, ERROR),
     DUPLICATE_HEADERS_PARAM(DiagnosticMessage.ERROR_105, DiagnosticCode.MCP_105, ERROR),
-    INVALID_HEADER_PARAMETER_TYPE(DiagnosticMessage.ERROR_106, DiagnosticCode.MCP_106, ERROR);
+    INVALID_HEADER_PARAMETER_TYPE(DiagnosticMessage.ERROR_106, DiagnosticCode.MCP_106, ERROR),
+    TRANSPORT_SPECIFIC_PARAM_NOT_ALLOWED(DiagnosticMessage.ERROR_107, DiagnosticCode.MCP_107, ERROR);
 
     private final String diagnostic;
     private final String diagnosticCode;

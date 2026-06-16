@@ -17,19 +17,15 @@
 import ballerina/http;
 import ballerina/mcp;
 
-// Header binding records must not have rest fields (MCP_106).
-type OpenHeaders record {|
-    string authorization;
-    string...;
-|};
-
-@mcp:StreamableHttpServiceConfig {
-    info: {name: "sample-3", version: "1.0.0"}
+// A raw http:Headers parameter is a transport-specific property and is not accessible in the
+// transport-agnostic mcp:Service (MCP_107).
+@mcp:ServiceConfig {
+    info: {name: "sample-8", version: "1.0.0"}
 }
-service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9303) {
+service mcp:Service /mcp on new mcp:StreamableHttpListener(9308) {
 
-    @mcp:Tool {description: "header record with rest field"}
-    remote function badRecord(@http:Header OpenHeaders hdrs) returns string {
-        return hdrs.authorization;
+    @mcp:Tool {description: "raw headers object on the transport-agnostic service"}
+    remote function badRaw(http:Headers headers, string name) returns string {
+        return name;
     }
 }

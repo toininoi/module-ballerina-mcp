@@ -33,7 +33,10 @@ public enum DiagnosticMessage {
             "Only one parameter of type 'http:Headers' is allowed."),
     ERROR_106("Invalid type of header param ''{1}'' in function ''{0}'': expected one of the 'string', 'int', " +
             "'float', 'decimal', 'boolean' types, an array of the above types, or a record which consists of " +
-            "the above types.");
+            "the above types."),
+    ERROR_107("Parameter ''{1}'' in function ''{0}'' accesses transport-specific properties, which are not " +
+            "accessible in the transport-agnostic 'mcp:Service'. Use a transport-specific service type such " +
+            "as 'mcp:StreamableHttpService'.");
 
     private final String message;
 

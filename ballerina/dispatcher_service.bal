@@ -26,11 +26,11 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
         ...httpServiceConfig
     } isolated service object {
         private map<Session> sessionMap = {};
-        private ServiceConfiguration? cachedServiceConfig = ();
+        private StreamableHttpServiceConfiguration? cachedServiceConfig = ();
 
         isolated resource function delete .(http:Headers headers) returns http:BadRequest|http:Ok|Error {
             http:authenticateResource(self, "delete", []);
-            ServiceConfiguration config = check self.getCachedServiceConfiguration();
+            StreamableHttpServiceConfiguration config = check self.getCachedServiceConfiguration();
             SessionMode sessionMode = config.sessionMode;
 
             if sessionMode == STATELESS {
@@ -87,13 +87,14 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             };
         }
 
-        private isolated function getCachedServiceConfiguration() returns ServiceConfiguration|Error {
+        private isolated function getCachedServiceConfiguration() returns StreamableHttpServiceConfiguration|Error {
             lock {
                 if self.cachedServiceConfig is () {
-                    Service|AdvancedService mcpService = check getMcpServiceFromDispatcher(self);
+                    Service|AdvancedService|StreamableHttpService|StreamableHttpAdvancedService mcpService =
+                            check getMcpServiceFromDispatcher(self);
                     self.cachedServiceConfig = getServiceConfiguration(mcpService);
                 }
-                return <ServiceConfiguration>self.cachedServiceConfig.clone();
+                return <StreamableHttpServiceConfiguration>self.cachedServiceConfig.clone();
             }
         }
 
@@ -145,7 +146,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                 };
             }
 
-            ServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
+            StreamableHttpServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
             SessionMode effectiveSessionMode = determineEffectiveSessionMode(serviceConfig, headers, REQUEST_INITIALIZE);
 
             string requestedVersion = initRequest.params.protocolVersion;
@@ -197,7 +198,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
 
         private isolated function handleListToolsRequest(JsonRpcRequest request, http:Headers headers)
             returns http:BadRequest|http:Ok|Error {
-            ServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
+            StreamableHttpServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
             SessionMode effectiveSessionMode = determineEffectiveSessionMode(serviceConfig, headers, REQUEST_LIST_TOOLS);
 
             string? sessionId = ();
@@ -243,7 +244,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
 
         private isolated function handleCallToolRequest(JsonRpcRequest request, http:Headers headers)
             returns http:BadRequest|http:Ok|Error {
-            ServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
+            StreamableHttpServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
             SessionMode effectiveSessionMode = determineEffectiveSessionMode(serviceConfig, headers, REQUEST_CALL_TOOL);
 
             string? sessionId = ();
@@ -313,11 +314,12 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
         }
 
         private isolated function executeOnListTools() returns ListToolsResult|Error {
-            Service|AdvancedService mcpService = check getMcpServiceFromDispatcher(self);
-            if mcpService is AdvancedService {
+            Service|AdvancedService|StreamableHttpService|StreamableHttpAdvancedService mcpService =
+                    check getMcpServiceFromDispatcher(self);
+            if mcpService is AdvancedService|StreamableHttpAdvancedService {
                 return invokeOnListTools(mcpService);
             }
-            if mcpService is Service {
+            if mcpService is Service|StreamableHttpService {
                 return listToolsForRemoteFunctions(mcpService);
             }
             return error DispatcherError("MCP Service is not attached");
@@ -325,11 +327,15 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
 
         private isolated function executeOnCallTool(CallToolParams params, Session? session, http:Headers headers,
                 boolean treatNilableAsOptional) returns CallToolResult|Error {
-            Service|AdvancedService mcpService = check getMcpServiceFromDispatcher(self);
+            Service|AdvancedService|StreamableHttpService|StreamableHttpAdvancedService mcpService =
+                    check getMcpServiceFromDispatcher(self);
+            if mcpService is StreamableHttpAdvancedService {
+                return invokeOnCallToolWithHeaders(mcpService, params.cloneReadOnly(), session, headers);
+            }
             if mcpService is AdvancedService {
                 return invokeOnCallTool(mcpService, params.cloneReadOnly(), session);
             }
-            if mcpService is Service {
+            if mcpService is Service|StreamableHttpService {
                 CallToolResult|error result = callToolForRemoteFunctions(mcpService, params.cloneReadOnly(), session,
                         headers, extractHeaderValues(headers), treatNilableAsOptional);
                 if result is ParameterBindingError {

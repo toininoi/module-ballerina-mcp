@@ -33,8 +33,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Tests for the MCP compiler plugin diagnostics on '@http:Header' and 'http:Headers'
- * tool parameters.
+ * Tests for the MCP compiler plugin diagnostics on '@http:Header' and 'http:Headers' tool parameters.
  */
 public class CompilerPluginTest {
 
@@ -43,8 +42,10 @@ public class CompilerPluginTest {
     private static final Path DISTRIBUTION_PATH = Paths.get("../", "target", "ballerina-runtime")
             .toAbsolutePath();
 
+    private static final String MCP_104 = "MCP_104";
     private static final String MCP_105 = "MCP_105";
     private static final String MCP_106 = "MCP_106";
+    private static final String MCP_107 = "MCP_107";
 
     private Package loadPackage(String path) {
         Path projectDirPath = RESOURCE_DIRECTORY.resolve(path);
@@ -110,5 +111,26 @@ public class CompilerPluginTest {
         DiagnosticResult diagnosticResult = compile("sample_package_5");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
         assertError(diagnosticResult, 0, "Invalid type of header param 'payload'", MCP_106);
+    }
+
+    @Test
+    public void testHeaderParamRequiresStreamableHttpService() {
+        DiagnosticResult diagnosticResult = compile("sample_package_6");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_107);
+    }
+
+    @Test
+    public void testSessionParamStatelessViaTransportConfig() {
+        DiagnosticResult diagnosticResult = compile("sample_package_7");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "is not allowed when sessionMode is STATELESS", MCP_104);
+    }
+
+    @Test
+    public void testRawHeadersParamRequiresStreamableHttpService() {
+        DiagnosticResult diagnosticResult = compile("sample_package_8");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_107);
     }
 }

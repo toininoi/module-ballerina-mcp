@@ -18,10 +18,10 @@ import ballerina/http;
 import ballerina/mcp;
 
 // Header parameters must be string/int/float/decimal/boolean based (MCP_106).
-@mcp:ServiceConfig {
+@mcp:StreamableHttpServiceConfig {
     info: {name: "sample-5", version: "1.0.0"}
 }
-service mcp:Service /mcp on new mcp:Listener(9305) {
+service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9305) {
 
     @mcp:Tool {description: "xml is not a valid header param type"}
     remote function badXml(@http:Header xml payload) returns string {

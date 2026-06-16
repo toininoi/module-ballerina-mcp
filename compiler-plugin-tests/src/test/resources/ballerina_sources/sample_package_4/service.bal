@@ -18,10 +18,10 @@ import ballerina/http;
 import ballerina/mcp;
 
 // Only one parameter of type http:Headers is allowed per tool (MCP_105).
-@mcp:ServiceConfig {
+@mcp:StreamableHttpServiceConfig {
     info: {name: "sample-4", version: "1.0.0"}
 }
-service mcp:Service /mcp on new mcp:Listener(9304) {
+service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9304) {
 
     @mcp:Tool {description: "duplicate http:Headers parameters"}
     remote function badHeaders(http:Headers first, http:Headers second, string name) returns string {

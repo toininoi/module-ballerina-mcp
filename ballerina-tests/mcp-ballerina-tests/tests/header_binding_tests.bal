@@ -29,11 +29,11 @@ type TestCallerHeaders record {|
     string tenantId?;
 |};
 
-@mcp:ServiceConfig {
+@mcp:StreamableHttpServiceConfig {
     info: {name: "header-binding-test-server", version: "1.0.0"},
     sessionMode: mcp:STATELESS
 }
-isolated service mcp:Service /mcp on new mcp:Listener(8767) {
+isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(8767) {
 
     @mcp:Tool {description: "Binds the authorization header by parameter name"}
     isolated remote function readAuth(@http:Header string authorization, string name) returns string {
@@ -73,12 +73,12 @@ isolated service mcp:Service /mcp on new mcp:Listener(8767) {
     }
 }
 
-@mcp:ServiceConfig {
+@mcp:StreamableHttpServiceConfig {
     info: {name: "strict-header-binding-test-server", version: "1.0.0"},
     sessionMode: mcp:STATELESS,
     httpConfig: {treatNilableAsOptional: false}
 }
-isolated service mcp:Service /mcp on new mcp:Listener(8768) {
+isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(8768) {
 
     @mcp:Tool {description: "Nilable header under treatNilableAsOptional: false"}
     isolated remote function readStrictTenant(@http:Header {name: "X-Tenant-Id"} string? tenant) returns string {
