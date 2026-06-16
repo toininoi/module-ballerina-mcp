@@ -72,4 +72,9 @@ service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9301) {
     remote function tRecord(@http:Header CallerHeaders hdrs, http:Headers rawHeaders) returns string {
         return hdrs.authorization;
     }
+
+    @mcp:Tool {description: "raw request object alongside a tool argument"}
+    remote function tRequest(http:Request request, string name) returns string {
+        return name;
+    }
 }

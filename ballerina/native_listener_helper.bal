@@ -27,8 +27,8 @@ isolated function invokeOnCallTool(AdvancedService 'service, CallToolParams para
     'class: "io.ballerina.stdlib.mcp.McpServiceMethodHelper"
 } external;
 
-isolated function invokeOnCallToolWithHeaders(StreamableHttpAdvancedService 'service, CallToolParams params,
-        Session? session, http:Headers headers) returns CallToolResult|Error = @java:Method {
+isolated function invokeOnCallToolWithRequest(StreamableHttpAdvancedService 'service, CallToolParams params,
+        Session? session, http:Request request) returns CallToolResult|Error = @java:Method {
     'class: "io.ballerina.stdlib.mcp.McpServiceMethodHelper"
 } external;
 
@@ -38,8 +38,8 @@ isolated function listToolsForRemoteFunctions(Service|StreamableHttpService 'ser
 } external;
 
 isolated function callToolForRemoteFunctions(Service|StreamableHttpService 'service, CallToolParams params,
-        Session? session, http:Headers headers, map<string[]> headerValues, boolean treatNilableAsOptional,
-        typedesc<CallToolResult> t = <>) returns t|error = @java:Method {
+        Session? session, http:Headers headers, http:Request request, map<string[]> headerValues,
+        boolean treatNilableAsOptional, typedesc<CallToolResult> t = <>) returns t|error = @java:Method {
     'class: "io.ballerina.stdlib.mcp.McpServiceMethodHelper"
 } external;
 

@@ -66,7 +66,8 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             };
         }
 
-        isolated resource function post .(@http:Payload JsonRpcMessage request, http:Headers headers)
+        isolated resource function post .(@http:Payload JsonRpcMessage request, http:Request httpRequest,
+                http:Headers headers)
                 returns http:BadRequest|http:NotAcceptable|http:UnsupportedMediaType|http:Accepted|http:Ok|Error {
             http:authenticateResource(self, "post", []);
             http:NotAcceptable|http:UnsupportedMediaType? headerValidationError = validateRequiredHeaders(headers);
@@ -75,7 +76,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             }
 
             if request is JsonRpcRequest {
-                return self.processJsonRpcRequest(request, headers);
+                return self.processJsonRpcRequest(request, httpRequest, headers);
             }
 
             if request is JsonRpcNotification {
@@ -98,7 +99,8 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             }
         }
 
-        private isolated function processJsonRpcRequest(JsonRpcRequest request, http:Headers headers)
+        private isolated function processJsonRpcRequest(JsonRpcRequest request, http:Request httpRequest,
+                http:Headers headers)
             returns http:BadRequest|http:Ok|Error {
             match request.method {
                 REQUEST_INITIALIZE => {
@@ -108,7 +110,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                     return self.handleListToolsRequest(request, headers);
                 }
                 REQUEST_CALL_TOOL => {
-                    return self.handleCallToolRequest(request, headers);
+                    return self.handleCallToolRequest(request, httpRequest, headers);
                 }
                 _ => {
                     return <http:BadRequest>{
@@ -242,7 +244,8 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             };
         }
 
-        private isolated function handleCallToolRequest(JsonRpcRequest request, http:Headers headers)
+        private isolated function handleCallToolRequest(JsonRpcRequest request, http:Request httpRequest,
+                http:Headers headers)
             returns http:BadRequest|http:Ok|Error {
             StreamableHttpServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
             SessionMode effectiveSessionMode = determineEffectiveSessionMode(serviceConfig, headers, REQUEST_CALL_TOOL);
@@ -281,7 +284,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                 session = sessionId is string ? self.sessionMap[sessionId] : ();
             }
 
-            CallToolResult|error callToolResult = self.executeOnCallTool(params, session, headers,
+            CallToolResult|error callToolResult = self.executeOnCallTool(params, session, headers, httpRequest,
                     serviceConfig.httpConfig.treatNilableAsOptional);
             if callToolResult is error {
                 // Parameter binding failures are caller errors, reported as invalid params
@@ -326,18 +329,18 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
         }
 
         private isolated function executeOnCallTool(CallToolParams params, Session? session, http:Headers headers,
-                boolean treatNilableAsOptional) returns CallToolResult|Error {
+                http:Request httpRequest, boolean treatNilableAsOptional) returns CallToolResult|Error {
             Service|AdvancedService|StreamableHttpService|StreamableHttpAdvancedService mcpService =
                     check getMcpServiceFromDispatcher(self);
             if mcpService is StreamableHttpAdvancedService {
-                return invokeOnCallToolWithHeaders(mcpService, params.cloneReadOnly(), session, headers);
+                return invokeOnCallToolWithRequest(mcpService, params.cloneReadOnly(), session, httpRequest);
             }
             if mcpService is AdvancedService {
                 return invokeOnCallTool(mcpService, params.cloneReadOnly(), session);
             }
             if mcpService is Service|StreamableHttpService {
                 CallToolResult|error result = callToolForRemoteFunctions(mcpService, params.cloneReadOnly(), session,
-                        headers, extractHeaderValues(headers), treatNilableAsOptional);
+                        headers, httpRequest, extractHeaderValues(headers), treatNilableAsOptional);
                 if result is ParameterBindingError {
                     return result;
                 }

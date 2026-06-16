@@ -29,8 +29,8 @@ public enum DiagnosticMessage {
             "of type 'http:Headers' is allowed."),
     ERROR_103("Session parameter ''{1}'' in function ''{0}'' must be the first parameter."),
     ERROR_104("Session parameter ''{1}'' in function ''{0}'' is not allowed when sessionMode is 'STATELESS'."),
-    ERROR_105("Duplicate headers parameter ''{1}'' in function ''{0}''. " +
-            "Only one parameter of type 'http:Headers' is allowed."),
+    ERROR_105("Duplicate parameter ''{1}'' in function ''{0}''. " +
+            "Only one parameter of type ''{2}'' is allowed."),
     ERROR_106("Invalid type of header param ''{1}'' in function ''{0}'': expected one of the 'string', 'int', " +
             "'float', 'decimal', 'boolean' types, an array of the above types, or a record which consists of " +
             "the above types."),

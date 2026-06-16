@@ -512,15 +512,16 @@ public type Service distinct service object {
 
 # Defines a basic MCP service interface exposed over the Streamable HTTP transport. Tool
 # `remote` functions may additionally bind HTTP request information (e.g. `@http:Header`
-# parameters or an `http:Headers` parameter).
+# parameters, an `http:Headers` parameter, or an `http:Request` parameter).
 public type StreamableHttpService distinct service object {
 
 };
 
 # Defines an MCP service interface exposed over the Streamable HTTP transport with manual control
-# over tool listing and invocation. `onCallTool` additionally receives the request's `http:Headers`.
+# over tool listing and invocation. `onCallTool` additionally receives the underlying `http:Request`,
+# from which headers and other transport-specific request information can be accessed.
 public type StreamableHttpAdvancedService distinct service object {
     remote isolated function onListTools() returns ListToolsResult|ServerError;
-    remote isolated function onCallTool(CallToolParams params, Session? session, http:Headers headers)
+    remote isolated function onCallTool(CallToolParams params, Session? session, http:Request request)
         returns CallToolResult|ServerError;
 };

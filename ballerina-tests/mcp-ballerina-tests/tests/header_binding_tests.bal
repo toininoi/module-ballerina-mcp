@@ -71,6 +71,12 @@ isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListene
         string|http:HeaderNotFoundError auth = headers.getHeader("authorization");
         return auth is string ? auth : "<none>";
     }
+
+    @mcp:Tool {description: "Reads a header via the raw http:Request object"}
+    isolated remote function readViaRequest(http:Request request, string name) returns string {
+        string|http:HeaderNotFoundError auth = request.getHeader("authorization");
+        return name + ":" + (auth is string ? auth : "<none>");
+    }
 }
 
 @mcp:StreamableHttpServiceConfig {
@@ -242,6 +248,13 @@ function testRawHeadersParamBinding() returns error? {
     mcp:CallToolResult result = check headerClient->callTool(
         {name: "readRaw", arguments: {}}, {"authorization": "Bearer raw-token"});
     test:assertEquals(check getTextResult(result), "Bearer raw-token");
+}
+
+@test:Config {dependsOn: [testHeaderBindingClientInit]}
+function testRequestParamBinding() returns error? {
+    mcp:CallToolResult result = check headerClient->callTool(
+        {name: "readViaRequest", arguments: {"name": "World"}}, {"authorization": "Bearer req-token"});
+    test:assertEquals(check getTextResult(result), "World:Bearer req-token");
 }
 
 @test:Config {dependsOn: [testHeaderBindingClientInit]}

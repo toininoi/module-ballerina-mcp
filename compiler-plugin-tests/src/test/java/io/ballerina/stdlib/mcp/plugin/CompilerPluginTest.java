@@ -103,7 +103,8 @@ public class CompilerPluginTest {
     public void testDuplicateHttpHeadersParams() {
         DiagnosticResult diagnosticResult = compile("sample_package_4");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "Duplicate headers parameter 'second'", MCP_105);
+        assertError(diagnosticResult, 0, "Duplicate parameter 'second'", MCP_105);
+        assertError(diagnosticResult, 0, "type 'http:Headers'", MCP_105);
     }
 
     @Test
@@ -132,5 +133,20 @@ public class CompilerPluginTest {
         DiagnosticResult diagnosticResult = compile("sample_package_8");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
         assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_107);
+    }
+
+    @Test
+    public void testRequestParamRequiresStreamableHttpService() {
+        DiagnosticResult diagnosticResult = compile("sample_package_9");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_107);
+    }
+
+    @Test
+    public void testDuplicateHttpRequestParams() {
+        DiagnosticResult diagnosticResult = compile("sample_package_10");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "Duplicate parameter 'second'", MCP_105);
+        assertError(diagnosticResult, 0, "type 'http:Request'", MCP_105);
     }
 }

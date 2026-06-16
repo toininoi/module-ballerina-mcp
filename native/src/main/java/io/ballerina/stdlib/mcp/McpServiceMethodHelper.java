@@ -78,6 +78,7 @@ public final class McpServiceMethodHelper {
     // HTTP Headers-related constants
     private static final String HTTP_PACKAGE_NAME = "http";
     private static final String HEADERS_TYPE_NAME = "Headers";
+    private static final String REQUEST_TYPE_NAME = "Request";
 
     // @http:Header annotation-related constants
     private static final String PARAM_ANNOT_PREFIX = "$param$.";
@@ -115,18 +116,18 @@ public final class McpServiceMethodHelper {
 
     /**
      * Invoke the 'onCallTool' remote method of a Streamable HTTP advanced service, additionally
-     * passing the request's HTTP headers.
+     * passing the underlying HTTP request.
      *
      * @param env        The Ballerina runtime environment.
      * @param mcpService The MCP service object.
      * @param params     Parameters for the tool invocation.
      * @param session    The session object (or null).
-     * @param headers    The HTTP headers of the request.
+     * @param request    The HTTP request.
      * @return           Result of remote method invocation.
      */
-    public static Object invokeOnCallToolWithHeaders(Environment env, BObject mcpService, BMap<?, ?> params,
-                                                     Object session, BObject headers) {
-        return env.getRuntime().callMethod(mcpService, "onCallTool", null, params, session, headers);
+    public static Object invokeOnCallToolWithRequest(Environment env, BObject mcpService, BMap<?, ?> params,
+                                                     Object session, BObject request) {
+        return env.getRuntime().callMethod(mcpService, "onCallTool", null, params, session, request);
     }
 
     /**
@@ -165,8 +166,9 @@ public final class McpServiceMethodHelper {
      * @return           Record containing the invocation result or an error.
      */
     public static Object callToolForRemoteFunctions(Environment env, BObject mcpService, BMap<?, ?> params,
-                                                    Object session, BObject headers, BMap<?, ?> headerValues,
-                                                    boolean treatNilableAsOptional, BTypedesc typed) {
+                                                    Object session, BObject headers, BObject request,
+                                                    BMap<?, ?> headerValues, boolean treatNilableAsOptional,
+                                                    BTypedesc typed) {
         BString toolName = (BString) params.get(fromString(NAME_FIELD_NAME));
 
         Optional<RemoteMethodType> method = getRemoteMethods(mcpService).stream()
@@ -180,7 +182,7 @@ public final class McpServiceMethodHelper {
 
         Object argsOrError =
                 buildArgsForMethod(method.get(), (BMap<?, ?>) params.get(fromString(ARGUMENTS_FIELD_NAME)), session,
-                        headers, headerValues, treatNilableAsOptional);
+                        headers, request, headerValues, treatNilableAsOptional);
 
         if (argsOrError instanceof BError) {
             return argsOrError;
@@ -243,7 +245,7 @@ public final class McpServiceMethodHelper {
     }
 
     private static Object buildArgsForMethod(RemoteMethodType method, BMap<?, ?> arguments, Object session,
-                                             Object headers, BMap<?, ?> headerValues,
+                                             Object headers, Object request, BMap<?, ?> headerValues,
                                              boolean treatNilableAsOptional) {
         List<Parameter> params = List.of(method.getParameters());
         Object[] args = new Object[params.size()];
@@ -255,6 +257,8 @@ public final class McpServiceMethodHelper {
                 args[i] = session;
             } else if (isHeadersParameter(param)) {
                 args[i] = headers;
+            } else if (isRequestParameter(param)) {
+                args[i] = request;
             } else if (headerAnnotation != null) {
                 Object headerValueOrError = bindHeaderParam(param.type, param.name, headerAnnotation, headerValues,
                         treatNilableAsOptional);
@@ -290,18 +294,23 @@ public final class McpServiceMethodHelper {
         return false;
     }
 
-    private static boolean isSessionParameter(Parameter param) {
+    private static boolean isParameterOfType(Parameter param, String moduleName, String typeName) {
         Type paramType = param.type;
         return paramType.getPackage() != null
-                && MCP_PACKAGE_NAME.equals(paramType.getPackage().getName())
-                && SESSION_TYPE_NAME.equals(paramType.getName());
+                && moduleName.equals(paramType.getPackage().getName())
+                && typeName.equals(paramType.getName());
+    }
+
+    private static boolean isSessionParameter(Parameter param) {
+        return isParameterOfType(param, MCP_PACKAGE_NAME, SESSION_TYPE_NAME);
     }
 
     private static boolean isHeadersParameter(Parameter param) {
-        Type paramType = param.type;
-        return paramType.getPackage() != null
-                && HTTP_PACKAGE_NAME.equals(paramType.getPackage().getName())
-                && HEADERS_TYPE_NAME.equals(paramType.getName());
+        return isParameterOfType(param, HTTP_PACKAGE_NAME, HEADERS_TYPE_NAME);
+    }
+
+    private static boolean isRequestParameter(Parameter param) {
+        return isParameterOfType(param, HTTP_PACKAGE_NAME, REQUEST_TYPE_NAME);
     }
 
     /**

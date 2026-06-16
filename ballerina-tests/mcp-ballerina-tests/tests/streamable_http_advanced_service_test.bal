@@ -18,7 +18,7 @@ import ballerina/http;
 import ballerina/mcp;
 import ballerina/test;
 
-// An advanced Streamable HTTP service: onCallTool additionally receives the request headers.
+// An advanced Streamable HTTP service: onCallTool additionally receives the underlying http:Request.
 @mcp:StreamableHttpServiceConfig {
     info: {name: "advanced-http-server", version: "1.0.0"},
     sessionMode: mcp:STATELESS
@@ -33,9 +33,9 @@ isolated service mcp:StreamableHttpAdvancedService /mcp on new mcp:StreamableHtt
         };
     }
 
-    isolated remote function onCallTool(mcp:CallToolParams params, mcp:Session? session, http:Headers headers)
+    isolated remote function onCallTool(mcp:CallToolParams params, mcp:Session? session, http:Request request)
             returns mcp:CallToolResult|mcp:ServerError {
-        string|http:HeaderNotFoundError auth = headers.getHeader("Authorization");
+        string|http:HeaderNotFoundError auth = request.getHeader("Authorization");
         return {content: [{'type: "text", text: auth is string ? auth : "<none>"}]};
     }
 }

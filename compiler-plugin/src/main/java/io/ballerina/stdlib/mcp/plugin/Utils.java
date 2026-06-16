@@ -68,6 +68,7 @@ public class Utils {
     public static final String SESSION_TYPE_NAME = "Session";
     public static final String HTTP_PACKAGE_NAME = "http";
     public static final String HEADERS_TYPE_NAME = "Headers";
+    public static final String REQUEST_TYPE_NAME = "Request";
     public static final String HEADER_ANNOTATION_NAME = "Header";
     public static final String UNKNOWN_SYMBOL = "unknown";
     public static final String SERVICE_CONFIG_ANNOTATION_NAME = "ServiceConfig";
@@ -115,6 +116,12 @@ public class Utils {
     public static boolean isMcpModuleSymbol(Symbol symbol) {
         return symbol.getModule().isPresent()
                 && MCP_PACKAGE_NAME.equals(symbol.getModule().get().id().moduleName())
+                && BALLERINA_ORG.equals(symbol.getModule().get().id().orgName());
+    }
+
+    private static boolean isHttpModuleSymbol(Symbol symbol) {
+        return symbol.getModule().isPresent()
+                && HTTP_PACKAGE_NAME.equals(symbol.getModule().get().id().moduleName())
                 && BALLERINA_ORG.equals(symbol.getModule().get().id().orgName());
     }
 
@@ -217,6 +224,7 @@ public class Utils {
         var parameterSymbolList = functionTypeSymbol.params().get();
         boolean hasSessionParam = false;
         boolean hasHeadersParam = false;
+        boolean hasRequestParam = false;
 
         for (int i = 0; i < parameterSymbolList.size(); i++) {
             ParameterSymbol parameterSymbol = parameterSymbolList.get(i);
@@ -225,11 +233,12 @@ public class Utils {
 
             boolean isSessionType = isSessionType(parameterType);
 
-            // Header binding and http:Headers parameters expose transport-specific (HTTP)
-            // request information, so they are only allowed in an mcp:StreamableHttpService.
+            // Header binding, http:Headers, and http:Request parameters expose transport-specific
+            // (HTTP) request information, so they are only allowed in an mcp:StreamableHttpService.
             // (The type system separately guarantees an mcp:StreamableHttpService can only be
             // attached to an mcp:StreamableHttpListener.)
-            boolean isHttpBoundParam = hasHttpHeaderAnnotation(parameterSymbol) || isHttpHeadersType(parameterType);
+            boolean isHttpBoundParam = hasHttpHeaderAnnotation(parameterSymbol) || isHttpHeadersType(parameterType)
+                    || isHttpRequestType(parameterType);
             if (isHttpBoundParam && !isStreamableHttpService(functionDefinitionNode, context.semanticModel())) {
                 Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
                         CompilationDiagnostic.TRANSPORT_SPECIFIC_PARAM_NOT_ALLOWED,
@@ -254,13 +263,23 @@ public class Utils {
             if (isHttpHeadersType(parameterType)) {
                 if (hasHeadersParam) {
                     Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
-                            CompilationDiagnostic.DUPLICATE_HEADERS_PARAM,
+                            CompilationDiagnostic.DUPLICATE_PARAMETER,
                             parameterSymbol.getLocation().orElse(alternativeLocation),
-                            functionName, parameterName);
+                            functionName, parameterName, HTTP_PACKAGE_NAME + ":" + HEADERS_TYPE_NAME);
                     context.reportDiagnostic(diagnostic);
                     return false;
                 }
                 hasHeadersParam = true;
+            } else if (isHttpRequestType(parameterType)) {
+                if (hasRequestParam) {
+                    Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                            CompilationDiagnostic.DUPLICATE_PARAMETER,
+                            parameterSymbol.getLocation().orElse(alternativeLocation),
+                            functionName, parameterName, HTTP_PACKAGE_NAME + ":" + REQUEST_TYPE_NAME);
+                    context.reportDiagnostic(diagnostic);
+                    return false;
+                }
+                hasRequestParam = true;
             } else if (isSessionType) {
                 if (hasSessionParam) {
                     Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
@@ -310,17 +329,18 @@ public class Utils {
 
     static boolean isHttpHeadersType(TypeSymbol typeSymbol) {
         return HEADERS_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
-                && typeSymbol.getModule().isPresent()
-                && HTTP_PACKAGE_NAME.equals(typeSymbol.getModule().get().id().moduleName())
-                && BALLERINA_ORG.equals(typeSymbol.getModule().get().id().orgName());
+                && isHttpModuleSymbol(typeSymbol);
+    }
+
+    static boolean isHttpRequestType(TypeSymbol typeSymbol) {
+        return REQUEST_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
+                && isHttpModuleSymbol(typeSymbol);
     }
 
     static boolean hasHttpHeaderAnnotation(ParameterSymbol parameterSymbol) {
         return parameterSymbol.annotations().stream()
                 .anyMatch(annotation -> HEADER_ANNOTATION_NAME.equals(annotation.getName().orElse(""))
-                        && annotation.getModule().isPresent()
-                        && HTTP_PACKAGE_NAME.equals(annotation.getModule().get().id().moduleName())
-                        && BALLERINA_ORG.equals(annotation.getModule().get().id().orgName()));
+                        && isHttpModuleSymbol(annotation));
     }
 
     /**
