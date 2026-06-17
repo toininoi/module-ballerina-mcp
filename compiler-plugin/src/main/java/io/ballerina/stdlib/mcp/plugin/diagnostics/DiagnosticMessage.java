@@ -24,9 +24,7 @@ package io.ballerina.stdlib.mcp.plugin.diagnostics;
 public enum DiagnosticMessage {
     ERROR_101("Failed to generate the parameter schema definition for the function ''{0}''." +
             " Specify the parameter schema manually using the `@mcp:McpTool` annotation's parameter field."),
-    ERROR_102("Parameter ''{1}'' in function ''{0}'' must be of type 'anydata'. " +
-            "Only the first parameter can be of type 'mcp:Session', and a single parameter " +
-            "of type 'http:Headers' is allowed."),
+    ERROR_102("Parameter ''{1}'' in function ''{0}'' has an unsupported type. Supported types are {2}."),
     ERROR_103("Session parameter ''{1}'' in function ''{0}'' must be the first parameter."),
     ERROR_104("Session parameter ''{1}'' in function ''{0}'' is not allowed when sessionMode is 'STATELESS'."),
     ERROR_105("Duplicate parameter ''{1}'' in function ''{0}''. " +
@@ -36,7 +34,13 @@ public enum DiagnosticMessage {
             "the above types."),
     ERROR_107("Parameter ''{1}'' in function ''{0}'' accesses transport-specific properties, which are not " +
             "accessible in the transport-agnostic 'mcp:Service'. Use a transport-specific service type such " +
-            "as 'mcp:StreamableHttpService'.");
+            "as 'mcp:StreamableHttpService'."),
+    ERROR_108("A service of type 'mcp:StreamableHttpAdvancedService' must define a remote method ''{0}''."),
+    ERROR_109("Remote method ''{0}'' in an 'mcp:StreamableHttpAdvancedService' must declare exactly one " +
+            "parameter of type 'mcp:CallToolParams'."),
+    ERROR_110("Remote method ''{0}'' in an 'mcp:StreamableHttpAdvancedService' must return ''{1}''."),
+    ERROR_111("Remote method ''{0}'' is not supported in an 'mcp:StreamableHttpAdvancedService'. " +
+            "Only 'onListTools' and 'onCallTool' are allowed.");
 
     private final String message;
 

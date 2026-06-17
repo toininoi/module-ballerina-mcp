@@ -503,7 +503,7 @@ public type AdvancedService distinct service object {
     remote isolated function onListTools() returns ListToolsResult|ServerError;
     remote isolated function onCallTool(CallToolParams params, Session? session = ()) returns CallToolResult|ServerError;
 };
-
+ 
 # Defines a transport-agnostic basic MCP service interface. Tools are declared as `remote`
 # functions and cannot access transport-specific request information.
 public type Service distinct service object {
@@ -518,10 +518,10 @@ public type StreamableHttpService distinct service object {
 };
 
 # Defines an MCP service interface exposed over the Streamable HTTP transport with manual control
-# over tool listing and invocation. `onCallTool` additionally receives the underlying `http:Request`,
-# from which headers and other transport-specific request information can be accessed.
+# over tool listing and invocation. The service must declare `onListTools` and `onCallTool` `remote`
+# methods. In addition to `mcp:CallToolParams` and an optional `mcp:Session`, these methods may bind
+# transport-specific request information the same way `mcp:StreamableHttpService` tools can — via
+# `@http:Header` parameters, an `http:Headers` parameter, and/or an `http:Request` parameter. The
+# compiler plugin validates the shape of these methods.
 public type StreamableHttpAdvancedService distinct service object {
-    remote isolated function onListTools() returns ListToolsResult|ServerError;
-    remote isolated function onCallTool(CallToolParams params, Session? session, http:Request request)
-        returns CallToolResult|ServerError;
 };

@@ -42,10 +42,15 @@ public class CompilerPluginTest {
     private static final Path DISTRIBUTION_PATH = Paths.get("../", "target", "ballerina-runtime")
             .toAbsolutePath();
 
+    private static final String MCP_102 = "MCP_102";
     private static final String MCP_104 = "MCP_104";
     private static final String MCP_105 = "MCP_105";
     private static final String MCP_106 = "MCP_106";
     private static final String MCP_107 = "MCP_107";
+    private static final String MCP_108 = "MCP_108";
+    private static final String MCP_109 = "MCP_109";
+    private static final String MCP_110 = "MCP_110";
+    private static final String MCP_111 = "MCP_111";
 
     private Package loadPackage(String path) {
         Path projectDirPath = RESOURCE_DIRECTORY.resolve(path);
@@ -148,5 +153,49 @@ public class CompilerPluginTest {
         Assert.assertEquals(errorCount(diagnosticResult), 1);
         assertError(diagnosticResult, 0, "Duplicate parameter 'second'", MCP_105);
         assertError(diagnosticResult, 0, "type 'http:Request'", MCP_105);
+    }
+
+    @Test
+    public void testValidAdvancedService() {
+        DiagnosticResult diagnosticResult = compile("sample_package_11");
+        Assert.assertEquals(errorCount(diagnosticResult), 0,
+                "valid advanced service shapes must not produce errors: "
+                        + diagnosticResult.errors().toString());
+    }
+
+    @Test
+    public void testAdvancedServiceMissingOnCallTool() {
+        DiagnosticResult diagnosticResult = compile("sample_package_12");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "must define a remote method 'onCallTool'", MCP_108);
+    }
+
+    @Test
+    public void testAdvancedOnCallToolMissingCallToolParams() {
+        DiagnosticResult diagnosticResult = compile("sample_package_13");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "must declare exactly one parameter of type mcp:CallToolParams", MCP_109);
+    }
+
+    @Test
+    public void testAdvancedUnsupportedParam() {
+        DiagnosticResult diagnosticResult = compile("sample_package_14");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "Parameter 'extra' in function 'onCallTool' has an unsupported type",
+                MCP_102);
+    }
+
+    @Test
+    public void testAdvancedInvalidReturnType() {
+        DiagnosticResult diagnosticResult = compile("sample_package_15");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "must return 'mcp:CallToolResult|mcp:ServerError'", MCP_110);
+    }
+
+    @Test
+    public void testAdvancedUnknownRemoteMethod() {
+        DiagnosticResult diagnosticResult = compile("sample_package_16");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0, "Remote method 'doSomething' is not supported", MCP_111);
     }
 }

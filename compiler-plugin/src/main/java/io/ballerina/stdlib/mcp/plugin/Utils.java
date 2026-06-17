@@ -65,7 +65,11 @@ public class Utils {
     public static final String MCP_PACKAGE_NAME = "mcp";
     public static final String MCP_BASIC_SERVICE_NAME = "Service";
     public static final String STREAMABLE_HTTP_BASIC_SERVICE_NAME = "StreamableHttpService";
+    public static final String STREAMABLE_HTTP_ADVANCED_SERVICE_NAME = "StreamableHttpAdvancedService";
     public static final String SESSION_TYPE_NAME = "Session";
+    public static final String CALL_TOOL_PARAMS_TYPE_NAME = "CallToolParams";
+    public static final String CALL_TOOL_RESULT_TYPE_NAME = "CallToolResult";
+    public static final String LIST_TOOLS_RESULT_TYPE_NAME = "ListToolsResult";
     public static final String HTTP_PACKAGE_NAME = "http";
     public static final String HEADERS_TYPE_NAME = "Headers";
     public static final String REQUEST_TYPE_NAME = "Request";
@@ -74,6 +78,13 @@ public class Utils {
     public static final String SERVICE_CONFIG_ANNOTATION_NAME = "ServiceConfig";
     public static final String STREAMABLE_HTTP_SERVICE_CONFIG_ANNOTATION_NAME = "StreamableHttpServiceConfig";
     public static final String SESSION_MODE_FIELD = "sessionMode";
+
+    // Human-readable lists of supported parameter types, used in the INVALID_PARAMETER_TYPE diagnostic.
+    public static final String BASIC_TOOL_SUPPORTED_PARAM_TYPES =
+            "'anydata' tool parameters, a first 'mcp:Session' parameter, an 'http:Headers' parameter, "
+                    + "an 'http:Request' parameter, or '@http:Header' parameters";
+    public static final String ADVANCED_SUPPORTED_PARAM_TYPES =
+            "'mcp:CallToolParams', 'mcp:Session', 'http:Headers', 'http:Request', or an '@http:Header' parameter";
 
     public enum SessionMode {
         STATEFUL("stateful"),
@@ -313,7 +324,7 @@ public class Utils {
                 Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
                         CompilationDiagnostic.INVALID_PARAMETER_TYPE,
                         parameterSymbol.getLocation().orElse(alternativeLocation),
-                        functionName, parameterName);
+                        functionName, parameterName, BASIC_TOOL_SUPPORTED_PARAM_TYPES);
                 context.reportDiagnostic(diagnostic);
                 return false;
             }
@@ -324,6 +335,11 @@ public class Utils {
 
     static boolean isSessionType(TypeSymbol typeSymbol) {
         return SESSION_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
+                && isMcpModuleSymbol(typeSymbol);
+    }
+
+    static boolean isCallToolParamsType(TypeSymbol typeSymbol) {
+        return CALL_TOOL_PARAMS_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
                 && isMcpModuleSymbol(typeSymbol);
     }
 

@@ -36,7 +36,11 @@ public enum CompilationDiagnostic {
     SESSION_PARAM_NOT_ALLOWED_IN_STATELESS_MODE(DiagnosticMessage.ERROR_104, DiagnosticCode.MCP_104, ERROR),
     DUPLICATE_PARAMETER(DiagnosticMessage.ERROR_105, DiagnosticCode.MCP_105, ERROR),
     INVALID_HEADER_PARAMETER_TYPE(DiagnosticMessage.ERROR_106, DiagnosticCode.MCP_106, ERROR),
-    TRANSPORT_SPECIFIC_PARAM_NOT_ALLOWED(DiagnosticMessage.ERROR_107, DiagnosticCode.MCP_107, ERROR);
+    TRANSPORT_SPECIFIC_PARAM_NOT_ALLOWED(DiagnosticMessage.ERROR_107, DiagnosticCode.MCP_107, ERROR),
+    ADVANCED_SERVICE_MISSING_METHOD(DiagnosticMessage.ERROR_108, DiagnosticCode.MCP_108, ERROR),
+    ADVANCED_ON_CALL_TOOL_PARAMS(DiagnosticMessage.ERROR_109, DiagnosticCode.MCP_109, ERROR),
+    ADVANCED_INVALID_RETURN_TYPE(DiagnosticMessage.ERROR_110, DiagnosticCode.MCP_110, ERROR),
+    ADVANCED_UNKNOWN_REMOTE_METHOD(DiagnosticMessage.ERROR_111, DiagnosticCode.MCP_111, ERROR);
 
     private final String diagnostic;
     private final String diagnosticCode;

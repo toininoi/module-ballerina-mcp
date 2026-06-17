@@ -107,7 +107,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                     return self.handleInitializeRequest(request, headers);
                 }
                 REQUEST_LIST_TOOLS => {
-                    return self.handleListToolsRequest(request, headers);
+                    return self.handleListToolsRequest(request, httpRequest, headers);
                 }
                 REQUEST_CALL_TOOL => {
                     return self.handleCallToolRequest(request, httpRequest, headers);
@@ -198,7 +198,8 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             }
         }
 
-        private isolated function handleListToolsRequest(JsonRpcRequest request, http:Headers headers)
+        private isolated function handleListToolsRequest(JsonRpcRequest request, http:Request httpRequest,
+                http:Headers headers)
             returns http:BadRequest|http:Ok|Error {
             StreamableHttpServiceConfiguration serviceConfig = check self.getCachedServiceConfiguration();
             SessionMode effectiveSessionMode = determineEffectiveSessionMode(serviceConfig, headers, REQUEST_LIST_TOOLS);
@@ -224,8 +225,16 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                 }
             }
 
-            ListToolsResult|error listToolsResult = self.executeOnListTools();
+            ListToolsResult|error listToolsResult = self.executeOnListTools(headers, httpRequest,
+                    serviceConfig.httpConfig.treatNilableAsOptional);
             if listToolsResult is error {
+                // Parameter binding failures are caller errors, reported as invalid params
+                if listToolsResult is ParameterBindingError {
+                    return <http:BadRequest>{
+                        body: createJsonRpcError(INVALID_PARAMS,
+                                string `Failed to list tools: ${listToolsResult.message()}`, request.id)
+                    };
+                }
                 return <http:BadRequest>{
                     body: createJsonRpcError(INTERNAL_ERROR,
                             string `Failed to list tools: ${listToolsResult.message()}`, request.id)
@@ -316,10 +325,15 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             return LATEST_PROTOCOL_VERSION;
         }
 
-        private isolated function executeOnListTools() returns ListToolsResult|Error {
+        private isolated function executeOnListTools(http:Headers headers, http:Request httpRequest,
+                boolean treatNilableAsOptional) returns ListToolsResult|Error {
             Service|AdvancedService|StreamableHttpService|StreamableHttpAdvancedService mcpService =
                     check getMcpServiceFromDispatcher(self);
-            if mcpService is AdvancedService|StreamableHttpAdvancedService {
+            if mcpService is StreamableHttpAdvancedService {
+                return invokeAdvancedOnListTools(mcpService, headers, httpRequest, extractHeaderValues(headers),
+                        treatNilableAsOptional);
+            }
+            if mcpService is AdvancedService {
                 return invokeOnListTools(mcpService);
             }
             if mcpService is Service|StreamableHttpService {
@@ -333,7 +347,8 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             Service|AdvancedService|StreamableHttpService|StreamableHttpAdvancedService mcpService =
                     check getMcpServiceFromDispatcher(self);
             if mcpService is StreamableHttpAdvancedService {
-                return invokeOnCallToolWithRequest(mcpService, params.cloneReadOnly(), session, httpRequest);
+                return invokeAdvancedOnCallTool(mcpService, params.cloneReadOnly(), session, headers, httpRequest,
+                        extractHeaderValues(headers), treatNilableAsOptional);
             }
             if mcpService is AdvancedService {
                 return invokeOnCallTool(mcpService, params.cloneReadOnly(), session);

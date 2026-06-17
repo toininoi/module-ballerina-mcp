@@ -74,6 +74,11 @@ public final class McpServiceMethodHelper {
     // MCP Session-related constants
     private static final String MCP_PACKAGE_NAME = "mcp";
     private static final String SESSION_TYPE_NAME = "Session";
+    private static final String CALL_TOOL_PARAMS_TYPE_NAME = "CallToolParams";
+
+    // Advanced service remote method names
+    private static final String ON_CALL_TOOL_METHOD = "onCallTool";
+    private static final String ON_LIST_TOOLS_METHOD = "onListTools";
 
     // HTTP Headers-related constants
     private static final String HTTP_PACKAGE_NAME = "http";
@@ -115,19 +120,61 @@ public final class McpServiceMethodHelper {
     }
 
     /**
-     * Invoke the 'onCallTool' remote method of a Streamable HTTP advanced service, additionally
-     * passing the underlying HTTP request.
+     * Invoke the 'onCallTool' remote method of a Streamable HTTP advanced service. The method's
+     * declared parameters are inspected and bound flexibly (CallToolParams, Session, http:Headers,
+     * http:Request, and '@http:Header' parameters), mirroring how basic service tools are bound.
      *
-     * @param env        The Ballerina runtime environment.
-     * @param mcpService The MCP service object.
-     * @param params     Parameters for the tool invocation.
-     * @param session    The session object (or null).
-     * @param request    The HTTP request.
-     * @return           Result of remote method invocation.
+     * @param env                    The Ballerina runtime environment.
+     * @param mcpService             The MCP service object.
+     * @param params                 The CallToolParams for the tool invocation.
+     * @param session                The session object (or null).
+     * @param headers                The HTTP headers of the request.
+     * @param request                The HTTP request.
+     * @param headerValues           Header values keyed by lower-cased name, for '@http:Header' binding.
+     * @param treatNilableAsOptional Whether a missing header binds a nilable '@http:Header' param to nil.
+     * @return                       Result of remote method invocation, or a binding error.
      */
-    public static Object invokeOnCallToolWithRequest(Environment env, BObject mcpService, BMap<?, ?> params,
-                                                     Object session, BObject request) {
-        return env.getRuntime().callMethod(mcpService, "onCallTool", null, params, session, request);
+    public static Object invokeAdvancedOnCallTool(Environment env, BObject mcpService, BMap<?, ?> params,
+                                                  Object session, BObject headers, BObject request,
+                                                  BMap<?, ?> headerValues, boolean treatNilableAsOptional) {
+        Optional<RemoteMethodType> method = getRemoteMethod(mcpService, ON_CALL_TOOL_METHOD);
+        if (method.isEmpty()) {
+            return ModuleUtils.createError("Remote method '" + ON_CALL_TOOL_METHOD + "' not found");
+        }
+        Object argsOrError = buildAdvancedArgs(method.get(), params, session, headers, request, headerValues,
+                treatNilableAsOptional);
+        if (argsOrError instanceof BError) {
+            return argsOrError;
+        }
+        return env.getRuntime().callMethod(mcpService, ON_CALL_TOOL_METHOD, null, (Object[]) argsOrError);
+    }
+
+    /**
+     * Invoke the 'onListTools' remote method of a Streamable HTTP advanced service. The method's
+     * declared parameters are inspected and bound flexibly (http:Headers, http:Request, and
+     * '@http:Header' parameters).
+     *
+     * @param env                    The Ballerina runtime environment.
+     * @param mcpService             The MCP service object.
+     * @param headers                The HTTP headers of the request.
+     * @param request                The HTTP request.
+     * @param headerValues           Header values keyed by lower-cased name, for '@http:Header' binding.
+     * @param treatNilableAsOptional Whether a missing header binds a nilable '@http:Header' param to nil.
+     * @return                       Result of remote method invocation, or a binding error.
+     */
+    public static Object invokeAdvancedOnListTools(Environment env, BObject mcpService, BObject headers,
+                                                   BObject request, BMap<?, ?> headerValues,
+                                                   boolean treatNilableAsOptional) {
+        Optional<RemoteMethodType> method = getRemoteMethod(mcpService, ON_LIST_TOOLS_METHOD);
+        if (method.isEmpty()) {
+            return ModuleUtils.createError("Remote method '" + ON_LIST_TOOLS_METHOD + "' not found");
+        }
+        Object argsOrError = buildAdvancedArgs(method.get(), null, null, headers, request, headerValues,
+                treatNilableAsOptional);
+        if (argsOrError instanceof BError) {
+            return argsOrError;
+        }
+        return env.getRuntime().callMethod(mcpService, ON_LIST_TOOLS_METHOD, null, (Object[]) argsOrError);
     }
 
     /**
@@ -233,6 +280,54 @@ public final class McpServiceMethodHelper {
         return List.of(serviceType.getRemoteMethods());
     }
 
+    private static Optional<RemoteMethodType> getRemoteMethod(BObject mcpService, String name) {
+        return getRemoteMethods(mcpService).stream()
+                .filter(rmt -> rmt.getName().equals(name))
+                .findFirst();
+    }
+
+    /**
+     * Builds the argument array for an advanced service remote method ('onCallTool'/'onListTools') by
+     * inspecting its declared parameters and injecting the matching value. 'callToolParams' is null
+     * for 'onListTools' (which has no CallToolParams parameter).
+     */
+    private static Object buildAdvancedArgs(RemoteMethodType method, Object callToolParams, Object session,
+                                            Object headers, Object request, BMap<?, ?> headerValues,
+                                            boolean treatNilableAsOptional) {
+        List<Parameter> params = List.of(method.getParameters());
+        Object[] args = new Object[params.size()];
+        for (int i = 0; i < params.size(); i++) {
+            Parameter param = params.get(i);
+            BMap<?, ?> headerAnnotation = getHeaderAnnotation(method, param.name);
+
+            if (isCallToolParamsParameter(param)) {
+                args[i] = callToolParams;
+            } else if (isSessionParameter(param)) {
+                args[i] = session;
+            } else if (isHeadersParameter(param)) {
+                args[i] = headers;
+            } else if (isRequestParameter(param)) {
+                args[i] = request;
+            } else if (headerAnnotation != null) {
+                Object headerValueOrError = bindHeaderParam(param.type, param.name, headerAnnotation, headerValues,
+                        treatNilableAsOptional);
+                if (headerValueOrError instanceof BError) {
+                    return headerValueOrError;
+                }
+                args[i] = headerValueOrError;
+            } else {
+                // The compiler plugin rejects any other parameter shape; guard defensively.
+                return ModuleUtils.createError("Unsupported parameter '" + param.name + "' in method '"
+                        + method.getName() + "'");
+            }
+        }
+        return args;
+    }
+
+    private static boolean isCallToolParamsParameter(Parameter param) {
+        return isParameterOfType(param, MCP_PACKAGE_NAME, CALL_TOOL_PARAMS_TYPE_NAME);
+    }
+
     private static BMap<BString, Object> createToolRecord(ArrayType toolsArrayType, RemoteMethodType remoteMethod,
                                                           BMap<?, ?> annotationValue) {
         RecordType toolRecordType = (RecordType) ((ReferenceType) toolsArrayType.getElementType()).getReferredType();
@@ -302,7 +397,17 @@ public final class McpServiceMethodHelper {
     }
 
     private static boolean isSessionParameter(Parameter param) {
-        return isParameterOfType(param, MCP_PACKAGE_NAME, SESSION_TYPE_NAME);
+        // Session is commonly declared nilable ('mcp:Session?'), so look through the union as well.
+        return isMcpSessionType(param.type);
+    }
+
+    private static boolean isMcpSessionType(Type type) {
+        if (type instanceof UnionType unionType) {
+            return unionType.getMemberTypes().stream().anyMatch(McpServiceMethodHelper::isMcpSessionType);
+        }
+        return type.getPackage() != null
+                && MCP_PACKAGE_NAME.equals(type.getPackage().getName())
+                && SESSION_TYPE_NAME.equals(type.getName());
     }
 
     private static boolean isHeadersParameter(Parameter param) {

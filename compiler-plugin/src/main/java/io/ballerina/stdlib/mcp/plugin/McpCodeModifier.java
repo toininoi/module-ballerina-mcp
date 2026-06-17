@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static io.ballerina.compiler.syntax.tree.SyntaxKind.OBJECT_METHOD_DEFINITION;
+import static io.ballerina.compiler.syntax.tree.SyntaxKind.SERVICE_DECLARATION;
 
 /**
  * Code modifier for processing MCP tool annotations on remote functions.
@@ -40,6 +41,7 @@ public class McpCodeModifier extends CodeModifier {
     public void init(CodeModifierContext codeModifierContext) {
         codeModifierContext.addSyntaxNodeAnalysisTask(new RemoteFunctionAnalysisTask(modifierContextMap),
                 OBJECT_METHOD_DEFINITION);
+        codeModifierContext.addSyntaxNodeAnalysisTask(new AdvancedServiceAnalysisTask(), SERVICE_DECLARATION);
         codeModifierContext.addSourceModifierTask(new McpSourceModifier(modifierContextMap));
     }
 }
