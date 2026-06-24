@@ -73,6 +73,7 @@ function demonstrateCurrentWeather() returns mcp:ClientError? {
             arguments: {
                 "city": city
             },
+            // Attach request metadata; the server tool reads it via its mcp:Meta parameter (see server logs)
             _meta: {
                 "requestId": requestId
             }
@@ -81,13 +82,6 @@ function demonstrateCurrentWeather() returns mcp:ClientError? {
         io:println(string `Current Weather for ${city}:`);
         io:println(result.toString());
 
-        if result._meta is record {} {
-            io:println("\nResponse Metadata:");
-            record {} meta = <record {}>result._meta;
-            foreach var [key, value] in meta.entries() {
-                io:println(string `  ${key}: ${value.toString()}`);
-            }
-        }
         io:println("---");
     }
 }
@@ -111,6 +105,7 @@ function demonstrateWeatherForecast() returns mcp:ClientError? {
                 "location": testCase.location,
                 "days": testCase.days
             },
+            // Attach request metadata; the server tool reads it via its mcp:Meta parameter (see server logs)
             _meta: {
                 "requestId": requestId,
                 "forecastDays": testCase.days
@@ -120,13 +115,6 @@ function demonstrateWeatherForecast() returns mcp:ClientError? {
         io:println(string `${testCase.days}-Day Forecast for ${testCase.location}:`);
         io:println(result.toString());
 
-        if result._meta is record {} {
-            io:println("\nResponse Metadata:");
-            record {} meta = <record {}>result._meta;
-            foreach var [key, value] in meta.entries() {
-                io:println(string `  ${key}: ${value.toString()}`);
-            }
-        }
         io:println("---");
     }
 }

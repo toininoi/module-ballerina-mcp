@@ -156,7 +156,7 @@ public final class McpServiceMethodHelper {
         Object[] args = (Object[]) argsOrError;
         Object result = env.getRuntime().callMethod(mcpService, toolName.getValue(), null, args);
 
-        return createCallToolResult(typed, result, meta);
+        return createCallToolResult(typed, result);
     }
 
     /**
@@ -276,7 +276,7 @@ public final class McpServiceMethodHelper {
         return false;
     }
 
-    private static Object createCallToolResult(BTypedesc typed, Object result, Object meta) {
+    private static Object createCallToolResult(BTypedesc typed, Object result) {
         RecordType resultRecordType = (RecordType) typed.getDescribingType();
         BMap<BString, Object> callToolResult = ValueCreator.createRecordValue(resultRecordType);
 
@@ -298,12 +298,6 @@ public final class McpServiceMethodHelper {
         contentArray.append(textContent);
 
         callToolResult.put(fromString(CONTENT_FIELD_NAME), contentArray);
-
-        // Attach modified metadata to response if present
-        if (meta != null) {
-            callToolResult.put(fromString(META_FIELD_NAME), meta);
-        }
-
         return callToolResult;
     }
 }
