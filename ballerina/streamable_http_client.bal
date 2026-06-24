@@ -52,7 +52,8 @@ public distinct isolated client class StreamableHttpClient {
         }
 
         // Prepare and send the initialization request.
-        InitializeRequest initRequest = {
+        Request initRequest = {
+            method: REQUEST_INITIALIZE,
             params: {
                 protocolVersion: LATEST_PROTOCOL_VERSION,
                 capabilities: capabilities,
@@ -120,6 +121,15 @@ public distinct isolated client class StreamableHttpClient {
     # + return - Result of the tool execution or a ClientError.
     isolated remote function callTool(CallToolParams params, map<string|string[]> headers = {})
             returns CallToolResult|ClientError {
+        // Reject task-augmented calls when the server hasn't advertised task support.
+        if params.task !is () {
+            lock {
+                if self.serverCapabilities?.tasks?.requests?.tools?.call is () {
+                    return error ToolCallError("Server does not support task-augmented tool calls");
+                }
+            }
+        }
+
         CallToolRequest toolCallRequest = {
             params: params
         };
