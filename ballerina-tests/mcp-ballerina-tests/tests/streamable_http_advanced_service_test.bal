@@ -28,12 +28,13 @@ isolated service mcp:StreamableHttpAdvancedService /mcp on new mcp:StreamableHtt
 
     isolated remote function onListTools(@http:Header {name: "X-Tools-Filter"} string? filter)
             returns mcp:ListToolsResult|mcp:ServerError {
-        string toolName = filter ?: "whoAmI";
-        return {
-            tools: [
-                {name: toolName, description: "Returns the Authorization header", inputSchema: {'type: "object"}}
-            ]
-        };
+        // Echo the bound @http:Header value back via an error so the test can verify header
+        // binding on onListTools. (A returned ToolDefinition would require constructing the
+        // inputSchema record, which is currently not constructible in user code at runtime.)
+        if filter is string {
+            return error mcp:ServerError(string `filter:${filter}`);
+        }
+        return {tools: []};
     }
 
     isolated remote function onCallTool(mcp:CallToolParams params, mcp:Session? session,
@@ -50,16 +51,17 @@ final http:Client rawAdvancedClient = check new ("http://localhost:8771");
 
 @test:Config
 function testStreamableHttpAdvancedServiceListTools() returns error? {
-    // onListTools binds an @http:Header parameter to choose the listed tool name.
+    // onListTools binds an @http:Header parameter; the service echoes it back so we can confirm
+    // the header was bound and received.
     http:Request request = new;
     request.setJsonPayload({jsonrpc: "2.0", id: 1, method: "tools/list", params: {}});
     request.setHeader("Accept", "application/json, text/event-stream");
     request.setHeader("X-Tools-Filter", "filteredTool");
     http:Response response = check rawAdvancedClient->post("/mcp", request);
     json result = check response.getJsonPayload();
-    json[] tools = check (check result.result.tools).ensureType();
-    test:assertEquals(tools.length(), 1);
-    test:assertEquals(check tools[0].name, "filteredTool");
+    json message = check result.'error.message;
+    test:assertTrue(message.toString().includes("filter:filteredTool"),
+            msg = "expected the bound X-Tools-Filter header to be echoed, found: " + message.toString());
 }
 
 @test:Config

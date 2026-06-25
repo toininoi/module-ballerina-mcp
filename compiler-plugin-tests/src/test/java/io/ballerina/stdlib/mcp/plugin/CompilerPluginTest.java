@@ -44,13 +44,13 @@ public class CompilerPluginTest {
 
     private static final String MCP_102 = "MCP_102";
     private static final String MCP_104 = "MCP_104";
-    private static final String MCP_105 = "MCP_105";
-    private static final String MCP_106 = "MCP_106";
     private static final String MCP_107 = "MCP_107";
     private static final String MCP_108 = "MCP_108";
     private static final String MCP_109 = "MCP_109";
     private static final String MCP_110 = "MCP_110";
     private static final String MCP_111 = "MCP_111";
+    private static final String MCP_112 = "MCP_112";
+    private static final String MCP_113 = "MCP_113";
 
     private Package loadPackage(String path) {
         Path projectDirPath = RESOURCE_DIRECTORY.resolve(path);
@@ -94,36 +94,36 @@ public class CompilerPluginTest {
     public void testInvalidUnionHeaderParamType() {
         DiagnosticResult diagnosticResult = compile("sample_package_2");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "Invalid type of header param 'mixed'", MCP_106);
+        assertError(diagnosticResult, 0, "Invalid type of header param 'mixed'", MCP_108);
     }
 
     @Test
     public void testHeaderRecordWithRestFields() {
         DiagnosticResult diagnosticResult = compile("sample_package_3");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "Invalid type of header param 'hdrs'", MCP_106);
+        assertError(diagnosticResult, 0, "Invalid type of header param 'hdrs'", MCP_108);
     }
 
     @Test
     public void testDuplicateHttpHeadersParams() {
         DiagnosticResult diagnosticResult = compile("sample_package_4");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "Duplicate parameter 'second'", MCP_105);
-        assertError(diagnosticResult, 0, "type 'http:Headers'", MCP_105);
+        assertError(diagnosticResult, 0, "Duplicate parameter 'second'", MCP_107);
+        assertError(diagnosticResult, 0, "type 'http:Headers'", MCP_107);
     }
 
     @Test
     public void testInvalidHeaderParamType() {
         DiagnosticResult diagnosticResult = compile("sample_package_5");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "Invalid type of header param 'payload'", MCP_106);
+        assertError(diagnosticResult, 0, "Invalid type of header param 'payload'", MCP_108);
     }
 
     @Test
     public void testHeaderParamRequiresStreamableHttpService() {
         DiagnosticResult diagnosticResult = compile("sample_package_6");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_107);
+        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_109);
     }
 
     @Test
@@ -137,22 +137,22 @@ public class CompilerPluginTest {
     public void testRawHeadersParamRequiresStreamableHttpService() {
         DiagnosticResult diagnosticResult = compile("sample_package_8");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_107);
+        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_109);
     }
 
     @Test
     public void testRequestParamRequiresStreamableHttpService() {
         DiagnosticResult diagnosticResult = compile("sample_package_9");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_107);
+        assertError(diagnosticResult, 0, "accesses transport-specific properties", MCP_109);
     }
 
     @Test
     public void testDuplicateHttpRequestParams() {
         DiagnosticResult diagnosticResult = compile("sample_package_10");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "Duplicate parameter 'second'", MCP_105);
-        assertError(diagnosticResult, 0, "type 'http:Request'", MCP_105);
+        assertError(diagnosticResult, 0, "Duplicate parameter 'second'", MCP_107);
+        assertError(diagnosticResult, 0, "type 'http:Request'", MCP_107);
     }
 
     @Test
@@ -167,14 +167,14 @@ public class CompilerPluginTest {
     public void testAdvancedServiceMissingOnCallTool() {
         DiagnosticResult diagnosticResult = compile("sample_package_12");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "must define a remote method 'onCallTool'", MCP_108);
+        assertError(diagnosticResult, 0, "must define a remote method 'onCallTool'", MCP_110);
     }
 
     @Test
     public void testAdvancedOnCallToolMissingCallToolParams() {
         DiagnosticResult diagnosticResult = compile("sample_package_13");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "must declare exactly one parameter of type mcp:CallToolParams", MCP_109);
+        assertError(diagnosticResult, 0, "must declare exactly one parameter of type mcp:CallToolParams", MCP_111);
     }
 
     @Test
@@ -189,13 +189,13 @@ public class CompilerPluginTest {
     public void testAdvancedInvalidReturnType() {
         DiagnosticResult diagnosticResult = compile("sample_package_15");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "must return 'mcp:CallToolResult|mcp:ServerError'", MCP_110);
+        assertError(diagnosticResult, 0, "must return 'mcp:CallToolResult|mcp:ServerError'", MCP_112);
     }
 
     @Test
     public void testAdvancedUnknownRemoteMethod() {
         DiagnosticResult diagnosticResult = compile("sample_package_16");
         Assert.assertEquals(errorCount(diagnosticResult), 1);
-        assertError(diagnosticResult, 0, "Remote method 'doSomething' is not supported", MCP_111);
+        assertError(diagnosticResult, 0, "Remote method 'doSomething' is not supported", MCP_113);
     }
 }
