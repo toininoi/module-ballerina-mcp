@@ -17,6 +17,7 @@
 import ballerina/io;
 import ballerina/log;
 import ballerina/mcp;
+import ballerina/uuid;
 
 final mcp:StreamableHttpClient mcpClient = check new ("http://localhost:9090/mcp");
 
@@ -64,15 +65,23 @@ function demonstrateCurrentWeather() returns mcp:ClientError? {
     string[] cities = ["London", "New York", "Tokyo", "Sydney"];
 
     foreach string city in cities {
+        // Generate a request ID to track this request
+        string requestId = uuid:createType1AsString();
+
         mcp:CallToolResult result = check mcpClient->callTool({
             name: "getCurrentWeather",
             arguments: {
                 "city": city
+            },
+            // Attach request metadata; the server tool reads it via its mcp:Meta parameter (see server logs)
+            _meta: {
+                "requestId": requestId
             }
         });
 
         io:println(string `Current Weather for ${city}:`);
         io:println(result.toString());
+
         io:println("---");
     }
 }
@@ -88,45 +97,24 @@ function demonstrateWeatherForecast() returns mcp:ClientError? {
     ];
 
     foreach var testCase in testCases {
+        string requestId = uuid:createType1AsString();
+
         mcp:CallToolResult result = check mcpClient->callTool({
             name: "getWeatherForecast",
             arguments: {
                 "location": testCase.location,
                 "days": testCase.days
+            },
+            // Attach request metadata; the server tool reads it via its mcp:Meta parameter (see server logs)
+            _meta: {
+                "requestId": requestId,
+                "forecastDays": testCase.days
             }
         });
 
         io:println(string `${testCase.days}-Day Forecast for ${testCase.location}:`);
         io:println(result.toString());
+
         io:println("---");
     }
-
-    // Test edge cases
-    io:println("Testing edge cases:");
-
-    // Minimum forecast days
-    mcp:CallToolResult minResult = check mcpClient->callTool({
-        name: "getWeatherForecast",
-        arguments: {
-            "location": "Amsterdam",
-            "days": 1
-        }
-    });
-
-    io:println("1-Day Forecast for Amsterdam:");
-    io:println(minResult.toString());
-    io:println("---");
-
-    // Maximum forecast days
-    mcp:CallToolResult maxResult = check mcpClient->callTool({
-        name: "getWeatherForecast",
-        arguments: {
-            "location": "Rome",
-            "days": 7
-        }
-    });
-
-    io:println("7-Day Forecast for Rome:");
-    io:println(maxResult.toString());
-    io:println("---");
 }
