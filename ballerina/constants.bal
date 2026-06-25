@@ -16,6 +16,7 @@
 
 // Transport related constants (headers)
 const SESSION_ID_HEADER = "mcp-session-id";
+const PROTOCOL_VERSION_HEADER = "mcp-protocol-version";
 const ACCEPT_HEADER = "accept";
 const CONTENT_TYPE_HEADER = "content-type";
 const CONTENT_TYPE_JSON = "application/json";
