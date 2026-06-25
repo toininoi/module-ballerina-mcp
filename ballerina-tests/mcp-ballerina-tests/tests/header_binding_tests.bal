@@ -33,7 +33,7 @@ type TestCallerHeaders record {|
     info: {name: "header-binding-test-server", version: "1.0.0"},
     sessionMode: mcp:STATELESS
 }
-isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(8767) {
+isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(8772) {
 
     @mcp:Tool {description: "Binds the authorization header by parameter name"}
     isolated remote function readAuth(@http:Header string authorization, string name) returns string {
@@ -84,7 +84,7 @@ isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListene
     sessionMode: mcp:STATELESS,
     httpConfig: {treatNilableAsOptional: false}
 }
-isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(8768) {
+isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(8773) {
 
     @mcp:Tool {description: "Nilable header under treatNilableAsOptional: false"}
     isolated remote function readStrictTenant(@http:Header {name: "X-Tenant-Id"} string? tenant) returns string {
@@ -92,14 +92,14 @@ isolated service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListene
     }
 }
 
-final mcp:StreamableHttpClient headerClient = check new ("http://localhost:8767/mcp");
-final mcp:StreamableHttpClient strictHeaderClient = check new ("http://localhost:8768/mcp");
+final mcp:StreamableHttpClient headerClient = check new ("http://localhost:8772/mcp");
+final mcp:StreamableHttpClient strictHeaderClient = check new ("http://localhost:8773/mcp");
 
 // Raw JSON-RPC client: the mcp client discards the JSON-RPC error payload of
 // non-2xx responses and cannot send string[] header values, so error-path and
 // multi-value-header tests go through plain http.
-final http:Client rawHeaderClient = check new ("http://localhost:8767");
-final http:Client rawStrictHeaderClient = check new ("http://localhost:8768");
+final http:Client rawHeaderClient = check new ("http://localhost:8772");
+final http:Client rawStrictHeaderClient = check new ("http://localhost:8773");
 
 isolated function getTextResult(mcp:CallToolResult result) returns string|error {
     mcp:TextContent textContent = check result.content[0].ensureType();

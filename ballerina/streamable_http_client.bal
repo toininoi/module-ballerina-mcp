@@ -52,7 +52,8 @@ public distinct isolated client class StreamableHttpClient {
         }
 
         // Prepare and send the initialization request.
-        InitializeRequest initRequest = {
+        Request initRequest = {
+            method: REQUEST_INITIALIZE,
             params: {
                 protocolVersion: LATEST_PROTOCOL_VERSION,
                 capabilities: capabilities,
@@ -82,6 +83,9 @@ public distinct isolated client class StreamableHttpClient {
         lock {
             self.serverCapabilities = response.capabilities.cloneReadOnly();
             self.serverInfo = response.serverInfo.cloneReadOnly();
+            // Record the negotiated version so it is sent as the MCP-Protocol-Version header
+            // on all subsequent requests (including the initialized notification below).
+            self.transport.setProtocolVersion(protocolVersion);
         }
 
         check self.sendNotificationMessage(<InitializedNotification>{});
@@ -120,6 +124,15 @@ public distinct isolated client class StreamableHttpClient {
     # + return - Result of the tool execution or a ClientError.
     isolated remote function callTool(CallToolParams params, map<string|string[]> headers = {})
             returns CallToolResult|ClientError {
+        // Reject task-augmented calls when the server hasn't advertised task support.
+        if params.task !is () {
+            lock {
+                if self.serverCapabilities?.tasks?.requests?.tools?.call is () {
+                    return error ToolCallError("Server does not support task-augmented tool calls");
+                }
+            }
+        }
+
         CallToolRequest toolCallRequest = {
             params: params
         };

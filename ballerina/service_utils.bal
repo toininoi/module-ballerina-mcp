@@ -157,3 +157,49 @@ isolated function validateRequiredHeaders(http:Headers headers) returns http:Not
 
     return;
 }
+
+# Selects the protocol version to negotiate based on the client's requested version.
+# Echoes the requested version if supported; otherwise falls back to the latest supported version,
+# as required by the MCP version-negotiation lifecycle.
+#
+# + requestedVersion - The protocol version requested by the client
+# + return - The negotiated protocol version
+isolated function selectProtocolVersion(string requestedVersion) returns string {
+    foreach string supportedVersion in SUPPORTED_PROTOCOL_VERSIONS {
+        if supportedVersion == requestedVersion {
+            return requestedVersion;
+        }
+    }
+    return LATEST_PROTOCOL_VERSION;
+}
+
+# Extracts the `MCP-Protocol-Version` header value from the request headers, if present.
+#
+# + headers - HTTP headers to inspect
+# + return - The protocol version header value, or nil if absent
+isolated function getProtocolVersionFromHeaders(http:Headers headers) returns string? {
+    string|http:HeaderNotFoundError versionHeader = headers.getHeader(PROTOCOL_VERSION_HEADER);
+    return versionHeader is string ? versionHeader : ();
+}
+
+# Validates the `MCP-Protocol-Version` header sent on requests after initialization.
+# Per the Streamable HTTP transport spec: an absent header is tolerated (the server assumes
+# `2025-03-26` for backward compatibility), while a present but unsupported value must be rejected
+# with HTTP 400 Bad Request.
+#
+# + protocolVersion - The protocol version header value, or nil if absent
+# + return - A `400 Bad Request` response if the header is present and unsupported, otherwise nil
+isolated function validateProtocolVersionHeader(string? protocolVersion) returns http:BadRequest? {
+    if protocolVersion is () {
+        return;
+    }
+    foreach string supportedVersion in SUPPORTED_PROTOCOL_VERSIONS {
+        if supportedVersion == protocolVersion {
+            return;
+        }
+    }
+    return <http:BadRequest>{
+        body: createJsonRpcError(INVALID_REQUEST,
+                string `Unsupported MCP-Protocol-Version header: ${protocolVersion}`)
+    };
+}

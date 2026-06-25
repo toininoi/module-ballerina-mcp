@@ -29,6 +29,8 @@ isolated class StreamableHttpClientTransport {
     private final string serverUrl;
     private final http:Client httpClient;
     private string? sessionId;
+    # Protocol version negotiated during initialization, sent on all subsequent requests.
+    private string? protocolVersion = ();
 
     # Initializes the HTTP client transport with the provided server URL.
     #
@@ -150,6 +152,7 @@ isolated class StreamableHttpClientTransport {
                 }
 
                 self.sessionId = ();
+                self.protocolVersion = ();
                 return;
             } on fail error e {
                 return error SessionOperationError(
@@ -168,13 +171,31 @@ isolated class StreamableHttpClientTransport {
         }
     }
 
+    # Records the protocol version negotiated during initialization. Once set, it is included as the
+    # `MCP-Protocol-Version` header on all subsequent requests, as required by the Streamable HTTP transport.
+    #
+    # + protocolVersion - The negotiated protocol version.
+    isolated function setProtocolVersion(string protocolVersion) {
+        lock {
+            self.protocolVersion = protocolVersion;
+        }
+    }
+
     # Prepares common HTTP headers for requests, including the session ID if present.
     #
     # + return - Map of common headers to include in each request.
     private isolated function prepareRequestHeaders() returns map<string> {
         lock {
+            map<string> headers = {};
             string? currentSessionId = self.sessionId;
-            return currentSessionId is string ? {[SESSION_ID_HEADER]: currentSessionId} : {};
+            if currentSessionId is string {
+                headers[SESSION_ID_HEADER] = currentSessionId;
+            }
+            string? currentProtocolVersion = self.protocolVersion;
+            if currentProtocolVersion is string {
+                headers[PROTOCOL_VERSION_HEADER] = currentProtocolVersion;
+            }
+            return headers.clone();
         }
     }
 

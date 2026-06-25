@@ -26,7 +26,6 @@ import io.ballerina.runtime.api.types.ArrayType;
 import io.ballerina.runtime.api.types.Field;
 import io.ballerina.runtime.api.types.Parameter;
 import io.ballerina.runtime.api.types.RecordType;
-import io.ballerina.runtime.api.types.ReferenceType;
 import io.ballerina.runtime.api.types.RemoteMethodType;
 import io.ballerina.runtime.api.types.ServiceType;
 import io.ballerina.runtime.api.types.Type;
@@ -71,9 +70,11 @@ public final class McpServiceMethodHelper {
     private static final String TEXT_VALUE_NAME = "text";
     private static final String MCP_SERVICE_FIELD = "mcpService";
 
-    // MCP Session-related constants
+    // MCP Session and Meta-related constants
     private static final String MCP_PACKAGE_NAME = "mcp";
     private static final String SESSION_TYPE_NAME = "Session";
+    private static final String META_TYPE_NAME = "Meta";
+    private static final String META_FIELD_NAME = "_meta";
     private static final String CALL_TOOL_PARAMS_TYPE_NAME = "CallToolParams";
 
     // Advanced service remote method names
@@ -227,9 +228,12 @@ public final class McpServiceMethodHelper {
                     .createError("RemoteMethodType with name '" + toolName.getValue() + "' not found");
         }
 
+        // Extract metadata from params
+        Object meta = params.get(fromString(META_FIELD_NAME));
+
         Object argsOrError =
                 buildArgsForMethod(method.get(), (BMap<?, ?>) params.get(fromString(ARGUMENTS_FIELD_NAME)), session,
-                        headers, request, headerValues, treatNilableAsOptional);
+                        meta, headers, request, headerValues, treatNilableAsOptional);
 
         if (argsOrError instanceof BError) {
             return argsOrError;
@@ -330,7 +334,7 @@ public final class McpServiceMethodHelper {
 
     private static BMap<BString, Object> createToolRecord(ArrayType toolsArrayType, RemoteMethodType remoteMethod,
                                                           BMap<?, ?> annotationValue) {
-        RecordType toolRecordType = (RecordType) ((ReferenceType) toolsArrayType.getElementType()).getReferredType();
+        RecordType toolRecordType = (RecordType) TypeUtils.getImpliedType(toolsArrayType.getElementType());
         BMap<BString, Object> tool = ValueCreator.createRecordValue(toolRecordType);
 
         tool.put(fromString(NAME_FIELD_NAME), fromString(remoteMethod.getName()));
@@ -340,7 +344,7 @@ public final class McpServiceMethodHelper {
     }
 
     private static Object buildArgsForMethod(RemoteMethodType method, BMap<?, ?> arguments, Object session,
-                                             Object headers, Object request, BMap<?, ?> headerValues,
+                                             Object meta, Object headers, Object request, BMap<?, ?> headerValues,
                                              boolean treatNilableAsOptional) {
         List<Parameter> params = List.of(method.getParameters());
         Object[] args = new Object[params.size()];
@@ -350,6 +354,8 @@ public final class McpServiceMethodHelper {
 
             if (isSessionParameter(param)) {
                 args[i] = session;
+            } else if (isMetaParameter(param)) {
+                args[i] = meta;
             } else if (isHeadersParameter(param)) {
                 args[i] = headers;
             } else if (isRequestParameter(param)) {
@@ -611,6 +617,27 @@ public final class McpServiceMethodHelper {
         return recordValue;
     }
 
+    private static boolean isMetaParameter(Parameter param) {
+        Type paramType = param.type;
+
+        // Direct Meta type check
+        if (paramType.getPackage() != null
+                && MCP_PACKAGE_NAME.equals(paramType.getPackage().getName())
+                && META_TYPE_NAME.equals(paramType.getName())) {
+            return true;
+        }
+
+        // Check if it's an optional Meta type (mcp:Meta?)
+        if (paramType instanceof UnionType unionType) {
+            return unionType.getMemberTypes().stream()
+                    .anyMatch(type -> type.getPackage() != null
+                            && MCP_PACKAGE_NAME.equals(type.getPackage().getName())
+                            && META_TYPE_NAME.equals(type.getName()));
+        }
+
+        return false;
+    }
+
     private static Object createCallToolResult(BTypedesc typed, Object result) {
         RecordType resultRecordType = (RecordType) typed.getDescribingType();
         BMap<BString, Object> callToolResult = ValueCreator.createRecordValue(resultRecordType);
@@ -618,7 +645,12 @@ public final class McpServiceMethodHelper {
         ArrayType contentArrayType = (ArrayType) resultRecordType.getFields().get(CONTENT_FIELD_NAME).getFieldType();
         BArray contentArray = ValueCreator.createArrayValue(contentArrayType);
 
-        UnionType contentUnionType = (UnionType) contentArrayType.getElementType();
+        Type contentElementType = TypeUtils.getImpliedType(contentArrayType.getElementType());
+        if (!(contentElementType instanceof UnionType contentUnionType)) {
+            return ModuleUtils.createError(
+                    "Expected content element type to be a union type, but found: "
+                            + contentElementType.getClass().getName());
+        }
         Optional<Type> textContentTypeOpt = contentUnionType.getMemberTypes().stream()
                 .filter(type -> TYPE_TEXT_CONTENT.equals(type.getName()))
                 .findFirst();
@@ -626,7 +658,7 @@ public final class McpServiceMethodHelper {
             return ModuleUtils
                     .createError("No member type named 'TextContent' found in content union type.");
         }
-        RecordType textContentRecordType = (RecordType) ((ReferenceType) textContentTypeOpt.get()).getReferredType();
+        RecordType textContentRecordType = (RecordType) TypeUtils.getImpliedType(textContentTypeOpt.get());
         BMap<BString, Object> textContent = ValueCreator.createRecordValue(textContentRecordType);
         textContent.put(fromString(TYPE_FIELD_NAME), fromString(TEXT_VALUE_NAME));
         textContent.put(fromString(TEXT_FIELD_NAME), fromString(result == null ? "" : result.toString()));
