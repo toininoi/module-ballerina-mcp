@@ -30,6 +30,11 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
 
         isolated resource function delete .(http:Headers headers) returns http:BadRequest|http:Ok|Error {
             http:authenticateResource(self, "delete", []);
+            http:BadRequest? protocolVersionError =
+                    validateProtocolVersionHeader(getProtocolVersionFromHeaders(headers));
+            if protocolVersionError !is () {
+                return protocolVersionError;
+            }
             ServiceConfiguration config = check self.getCachedServiceConfiguration();
             SessionMode sessionMode = config.sessionMode;
 
@@ -72,6 +77,17 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             http:NotAcceptable|http:UnsupportedMediaType? headerValidationError = validateRequiredHeaders(headers);
             if headerValidationError !is () {
                 return headerValidationError;
+            }
+
+            // The MCP-Protocol-Version header is required on all requests after initialization. The
+            // initialize request itself establishes the version, so it is exempt from this validation.
+            boolean isInitializeRequest = request is JsonRpcRequest && request.method == REQUEST_INITIALIZE;
+            if !isInitializeRequest {
+                http:BadRequest? protocolVersionError =
+                        validateProtocolVersionHeader(getProtocolVersionFromHeaders(headers));
+                if protocolVersionError !is () {
+                    return protocolVersionError;
+                }
             }
 
             if request is JsonRpcRequest {
@@ -149,7 +165,7 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
             SessionMode effectiveSessionMode = determineEffectiveSessionMode(serviceConfig, headers, REQUEST_INITIALIZE);
 
             string requestedVersion = initRequest.params.protocolVersion;
-            string protocolVersion = self.selectProtocolVersion(requestedVersion);
+            string protocolVersion = selectProtocolVersion(requestedVersion);
 
             InitializeResult initResult = {
                 protocolVersion: protocolVersion,
@@ -306,15 +322,6 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
                 headers: sessionId is string ? {[SESSION_ID_HEADER]: sessionId} : (),
                 body: responseBody
             };
-        }
-
-        private isolated function selectProtocolVersion(string requestedVersion) returns string {
-            foreach string supportedVersion in SUPPORTED_PROTOCOL_VERSIONS {
-                if supportedVersion == requestedVersion {
-                    return requestedVersion;
-                }
-            }
-            return LATEST_PROTOCOL_VERSION;
         }
 
         private isolated function executeOnListTools() returns ListToolsResult|Error {

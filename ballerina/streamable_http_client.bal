@@ -83,6 +83,9 @@ public distinct isolated client class StreamableHttpClient {
         lock {
             self.serverCapabilities = response.capabilities.cloneReadOnly();
             self.serverInfo = response.serverInfo.cloneReadOnly();
+            // Record the negotiated version so it is sent as the MCP-Protocol-Version header
+            // on all subsequent requests (including the initialized notification below).
+            self.transport.setProtocolVersion(protocolVersion);
         }
 
         check self.sendNotificationMessage(<InitializedNotification>{});
