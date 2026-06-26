@@ -500,35 +500,29 @@ public type ToolExecution record {|
 |};
 
 # Definition for a tool the client can call.
+# A JSON Schema object describing the parameters or output of a tool.
+public type JsonSchema record {
+    # The JSON Schema version
+    string \$schema?;
+    # The type of the schema
+    "object" 'type;
+    # The properties of the schema
+    map<anydata> properties?;
+    # The required properties of the schema
+    string[] required?;
+};
+
 public type ToolDefinition record {
     *BaseMetadata;
     *Icons;
     # A human-readable description of the tool.
     string description?;
     # A JSON Schema object defining the expected parameters for the tool.
-    record {
-        # The JSON Schema version
-        string \$schema?;
-        # The type of the schema
-        "object" 'type;
-        # The properties of the schema
-        map<anydata> properties?;
-        # The required properties of the schema
-        string[] required?;
-    } inputSchema;
+    JsonSchema inputSchema;
     # Execution-related properties for this tool.
     ToolExecution execution?;
     # An optional JSON Schema object defining the structure of the tool's output.
-    record {
-        # The JSON Schema version
-        string \$schema?;
-        # The type of the schema
-        "object" 'type;
-        # The properties of the schema
-        map<anydata> properties?;
-        # The required properties of the schema
-        string[] required?;
-    } outputSchema?;
+    JsonSchema outputSchema?;
     # Optional additional tool information.
     ToolAnnotations annotations?;
 };
