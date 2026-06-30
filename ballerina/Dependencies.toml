@@ -5,7 +5,7 @@
 
 [ballerina]
 dependencies-toml-version = "2"
-distribution-version = "2201.12.0"
+distribution-version = "2201.13.3"
 
 [[package]]
 org = "ballerina"
@@ -218,7 +218,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "log"
-version = "2.12.0"
+version = "2.17.0"
 dependencies = [
 	{org = "ballerina", name = "io"},
 	{org = "ballerina", name = "jballerina.java"},
@@ -284,7 +284,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "task"
-version = "2.10.0"
+version = "2.11.1"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"},
 	{org = "ballerina", name = "time"},
@@ -308,7 +308,7 @@ modules = [
 [[package]]
 org = "ballerina"
 name = "time"
-version = "2.7.0"
+version = "2.8.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -334,4 +334,3 @@ dependencies = [
 modules = [
 	{org = "ballerina", packageName = "uuid", moduleName = "uuid"}
 ]
-
