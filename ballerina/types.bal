@@ -499,7 +499,6 @@ public type ToolExecution record {|
     TaskSupport taskSupport = TASK_SUPPORT_FORBIDDEN;
 |};
 
-# Definition for a tool the client can call.
 # A JSON Schema object describing the parameters or output of a tool.
 public type JsonSchema record {
     # The JSON Schema version
@@ -512,6 +511,7 @@ public type JsonSchema record {
     string[] required?;
 };
 
+# Definition for a tool the client can call.
 public type ToolDefinition record {
     *BaseMetadata;
     *Icons;
