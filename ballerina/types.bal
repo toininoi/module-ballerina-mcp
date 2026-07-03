@@ -80,7 +80,7 @@ public type Request record {|
     # The method name for the request
     string method;
     # Optional parameters for the request
-    map<anydata> params?;
+    RequestParams params?;
 |};
 
 # Represents a notification.
@@ -166,7 +166,7 @@ public type JsonRpcError record {|
 
 # This request is sent from the client to the server when it first connects, asking it to begin initialization.
 type InitializeRequest record {|
-    *JsonRpcRequest;
+    *Request;
     # Method name for the request
     REQUEST_INITIALIZE method = REQUEST_INITIALIZE;
     # Parameters for the initialize request
@@ -499,7 +499,6 @@ public type ToolExecution record {|
     TaskSupport taskSupport = TASK_SUPPORT_FORBIDDEN;
 |};
 
-# Definition for a tool the client can call.
 # A JSON Schema object describing the parameters or output of a tool.
 public type JsonSchema record {
     # The JSON Schema version
@@ -512,6 +511,7 @@ public type JsonSchema record {
     string[] required?;
 };
 
+# Definition for a tool the client can call.
 public type ToolDefinition record {
     *BaseMetadata;
     *Icons;

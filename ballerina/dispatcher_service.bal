@@ -155,8 +155,8 @@ isolated function getDispatcherService(http:HttpServiceConfig httpServiceConfig)
 
         private isolated function handleInitializeRequest(JsonRpcRequest jsonRpcRequest, http:Headers headers)
             returns http:BadRequest|http:Ok|Error {
-            RequestId? id = jsonRpcRequest.id;
-            InitializeRequest|error initRequest = jsonRpcRequest.cloneWithType();
+            JsonRpcRequest {jsonrpc: _, id, ...request} = jsonRpcRequest;
+            InitializeRequest|error initRequest = request.cloneWithType();
             if initRequest is error {
                 return <http:BadRequest>{
                     body: createJsonRpcError(INVALID_REQUEST,
