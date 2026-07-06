@@ -17,7 +17,7 @@
 import ballerina/http;
 import ballerina/mcp;
 
-// Only a single http:Request parameter is allowed per tool (MCP_108).
+// Only a single http:Request parameter is allowed per tool (MCP_107).
 @mcp:StreamableHttpServiceConfig {
     info: {name: "sample-10", version: "1.0.0"}
 }

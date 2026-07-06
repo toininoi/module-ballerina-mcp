@@ -17,7 +17,7 @@
 import ballerina/http;
 import ballerina/mcp;
 
-// A union of two distinct basic types is not a valid header parameter type (MCP_106).
+// A union of two distinct basic types is not a valid header parameter type (MCP_108).
 @mcp:StreamableHttpServiceConfig {
     info: {name: "sample-2", version: "1.0.0"}
 }

@@ -198,4 +198,18 @@ public class CompilerPluginTest {
         Assert.assertEquals(errorCount(diagnosticResult), 1);
         assertError(diagnosticResult, 0, "Remote method 'doSomething' is not supported", MCP_113);
     }
+
+    @Test
+    public void testAdvancedListToolsUnsupportedParam() {
+        DiagnosticResult diagnosticResult = compile("sample_package_17");
+        Assert.assertEquals(errorCount(diagnosticResult), 1);
+        assertError(diagnosticResult, 0,
+                "Parameter 'params' in function 'onListTools' has an unsupported type", MCP_102);
+        // The supported-types message for 'onListTools' must not advertise the 'onCallTool'-only types.
+        Diagnostic diagnostic = (Diagnostic) diagnosticResult.errors().toArray()[0];
+        Assert.assertFalse(diagnostic.message().contains("mcp:CallToolParams"),
+                "onListTools supported-types message must not list 'mcp:CallToolParams': " + diagnostic.message());
+        Assert.assertFalse(diagnostic.message().contains("mcp:Session"),
+                "onListTools supported-types message must not list 'mcp:Session': " + diagnostic.message());
+    }
 }

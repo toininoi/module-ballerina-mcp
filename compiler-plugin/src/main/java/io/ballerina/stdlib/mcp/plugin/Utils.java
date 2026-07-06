@@ -86,6 +86,9 @@ public class Utils {
                     + "an 'http:Headers' parameter, an 'http:Request' parameter, or '@http:Header' parameters";
     public static final String ADVANCED_SUPPORTED_PARAM_TYPES =
             "'mcp:CallToolParams', 'mcp:Session', 'http:Headers', 'http:Request', or an '@http:Header' parameter";
+    // 'onListTools' does not accept 'mcp:CallToolParams' or 'mcp:Session'.
+    public static final String ADVANCED_LIST_TOOLS_SUPPORTED_PARAM_TYPES =
+            "'http:Headers', 'http:Request', or an '@http:Header' parameter";
 
     public enum SessionMode {
         STATEFUL("stateful"),

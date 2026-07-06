@@ -74,7 +74,7 @@ function testHeaderBindingOnStreamableHttpListener() returns error? {
 
 @test:Config
 function testStrictModeViaTransportConfigAnnotation() returns error? {
-    // treatNilableAsOptional=false comes from @mcp:StreamableHttpConfig.httpConfig:
+    // treatNilableAsOptional=false comes from @mcp:StreamableHttpServiceConfig.httpConfig:
     // a missing nilable header must be rejected as invalid params
     json payload = check rawCallTool(rawTransportClient, "tenant", {});
     string message = check getRawErrorMessage(payload);
@@ -89,11 +89,12 @@ function testStrictModeViaTransportConfigAnnotation() returns error? {
 @test:Config
 function testTransportConfigSessionModePrecedence() returns error? {
     // No initialize handshake and no mcp-session-id header: only works if the effective
-    // session mode is STATELESS, i.e. @mcp:StreamableHttpConfig overrode @mcp:ServiceConfig
+    // session mode is STATELESS, i.e. @mcp:StreamableHttpServiceConfig overrode @mcp:ServiceConfig
     json payload = check rawCallTool(rawPrecedenceClient, "echo", {});
     json|error errorField = payload.'error;
     if errorField is json {
-        test:assertFail("expected STATELESS behavior from @mcp:StreamableHttpConfig precedence, got: "
+        test:assertFail("expected STATELESS behavior from @mcp:StreamableHttpServiceConfig precedence, got: "
             + errorField.toString());
     }
+    test:assertEquals(check getRawTextResult(payload), "ok");
 }

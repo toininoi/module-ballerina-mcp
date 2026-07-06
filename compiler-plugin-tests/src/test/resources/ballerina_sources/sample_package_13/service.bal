@@ -16,7 +16,7 @@
 
 import ballerina/mcp;
 
-// onCallTool does not declare a CallToolParams parameter (MCP_109).
+// onCallTool does not declare a CallToolParams parameter (MCP_111).
 @mcp:StreamableHttpServiceConfig {
     info: {name: "sample-13", version: "1.0.0"}
 }

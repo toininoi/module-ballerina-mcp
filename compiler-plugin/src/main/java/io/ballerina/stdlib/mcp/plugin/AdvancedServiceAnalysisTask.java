@@ -158,8 +158,10 @@ public class AdvancedServiceAnalysisTask implements AnalysisTask<SyntaxNodeAnaly
                 }
                 hasSession = true;
             } else {
+                String supportedTypes = isCallTool
+                        ? Utils.ADVANCED_SUPPORTED_PARAM_TYPES : Utils.ADVANCED_LIST_TOOLS_SUPPORTED_PARAM_TYPES;
                 report(context, CompilationDiagnostic.INVALID_PARAMETER_TYPE, paramLocation,
-                        methodName, paramName, Utils.ADVANCED_SUPPORTED_PARAM_TYPES);
+                        methodName, paramName, supportedTypes);
             }
         }
 

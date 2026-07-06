@@ -18,7 +18,7 @@ import ballerina/http;
 import ballerina/mcp;
 
 // A raw http:Headers parameter is a transport-specific property and is not accessible in the
-// transport-agnostic mcp:Service (MCP_107).
+// transport-agnostic mcp:Service (MCP_109).
 @mcp:ServiceConfig {
     info: {name: "sample-8", version: "1.0.0"}
 }

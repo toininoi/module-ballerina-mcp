@@ -16,7 +16,7 @@
 
 import ballerina/mcp;
 
-// onCallTool returns the wrong type (MCP_111).
+// onCallTool returns the wrong type (MCP_112).
 @mcp:StreamableHttpServiceConfig {
     info: {name: "sample-15", version: "1.0.0"}
 }

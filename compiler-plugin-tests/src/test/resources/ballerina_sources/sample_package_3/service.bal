@@ -17,7 +17,7 @@
 import ballerina/http;
 import ballerina/mcp;
 
-// Header binding records must not have rest fields (MCP_106).
+// Header binding records must not have rest fields (MCP_108).
 type OpenHeaders record {|
     string authorization;
     string...;

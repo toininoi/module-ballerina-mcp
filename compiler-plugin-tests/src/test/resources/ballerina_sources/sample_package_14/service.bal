@@ -16,7 +16,7 @@
 
 import ballerina/mcp;
 
-// onCallTool declares an unsupported plain parameter (MCP_110).
+// onCallTool declares an unsupported plain parameter (MCP_102).
 @mcp:StreamableHttpServiceConfig {
     info: {name: "sample-14", version: "1.0.0"}
 }

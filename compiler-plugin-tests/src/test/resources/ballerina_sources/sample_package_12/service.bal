@@ -16,7 +16,7 @@
 
 import ballerina/mcp;
 
-// Missing the required onCallTool remote method (MCP_108).
+// Missing the required onCallTool remote method (MCP_110).
 @mcp:StreamableHttpServiceConfig {
     info: {name: "sample-12", version: "1.0.0"}
 }

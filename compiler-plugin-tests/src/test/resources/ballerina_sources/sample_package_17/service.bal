@@ -14,17 +14,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-import ballerina/http;
 import ballerina/mcp;
 
-// Header parameters must be string/int/float/decimal/boolean based (MCP_108).
+// onListTools does not accept mcp:CallToolParams or mcp:Session; the reported supported types
+// must be specific to onListTools and must not list those two (MCP_102).
 @mcp:StreamableHttpServiceConfig {
-    info: {name: "sample-5", version: "1.0.0"}
+    info: {name: "sample-17", version: "1.0.0"}
 }
-service mcp:StreamableHttpService /mcp on new mcp:StreamableHttpListener(9305) {
+service mcp:StreamableHttpAdvancedService /mcp on new mcp:StreamableHttpListener(9317) {
 
-    @mcp:Tool {description: "xml is not a valid header param type"}
-    remote function badXml(@http:Header xml payload) returns string {
-        return payload.toString();
+    remote function onListTools(mcp:CallToolParams params) returns mcp:ListToolsResult|mcp:ServerError {
+        return {tools: []};
+    }
+
+    remote function onCallTool(mcp:CallToolParams params) returns mcp:CallToolResult|mcp:ServerError {
+        return {content: []};
     }
 }
