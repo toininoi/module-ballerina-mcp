@@ -18,9 +18,9 @@ import ballerina/log;
 import ballerina/mcp;
 import ballerina/time;
 
-listener mcp:Listener mcpListener = check new (9092);
+listener mcp:StreamableHttpListener mcpListener = check new (9092);
 
-@mcp:ServiceConfig {
+@mcp:StreamableHttpServiceConfig {
     info: {
         name: "MCP Shopping Cart Server",
         version: "1.0.0"

@@ -16,14 +16,38 @@
 
 import ballerina/http;
 
-# Retrieves the service configuration from an MCP service.
+# Resolves the effective Streamable HTTP configuration of an MCP service from its annotations.
 #
 # + mcpService - The MCP service instance
-# + return - The service configuration
-isolated function getServiceConfiguration(Service|AdvancedService mcpService) returns ServiceConfiguration {
+# + return - The resolved Streamable HTTP service configuration
+isolated function getServiceConfiguration(Service|AdvancedService|StreamableHttpService|StreamableHttpAdvancedService mcpService)
+        returns StreamableHttpServiceConfiguration {
     typedesc mcpServiceType = typeof mcpService;
+
+    // The transport-specific annotation is the configuration home for Streamable HTTP services.
+    StreamableHttpServiceConfiguration? transportConfig = mcpServiceType.@StreamableHttpServiceConfig;
+    if transportConfig is StreamableHttpServiceConfiguration {
+        return transportConfig;
+    }
+
+    // Fallback for transport-agnostic services. The deprecated httpConfig/sessionMode fields of
+    // @mcp:ServiceConfig are still honored here for backward compatibility (the only place the
+    // runtime reads these deprecated fields).
     ServiceConfiguration? serviceConfig = mcpServiceType.@ServiceConfig;
-    return serviceConfig ?: {
+    if serviceConfig is ServiceConfiguration {
+        StreamableHttpServiceConfiguration config = {
+            info: serviceConfig.info,
+            httpConfig: serviceConfig.httpConfig,
+            sessionMode: serviceConfig.sessionMode
+        };
+        ServerOptions? options = serviceConfig?.options;
+        if options is ServerOptions {
+            config.options = options;
+        }
+        return config;
+    }
+
+    return {
         info: {
             name: "MCP Service",
             version: "1.0.0"
@@ -40,13 +64,29 @@ isolated function getSessionIdFromHeaders(http:Headers headers) returns string? 
     return sessionHeader is string ? sessionHeader : ();
 }
 
+# Extracts all header values into a map keyed by lower-cased header name,
+# used for binding `@mcp:Header` annotated tool parameters.
+#
+# + headers - HTTP headers of the request
+# + return - Map of header values keyed by lower-cased header name
+isolated function extractHeaderValues(http:Headers headers) returns map<string[]> {
+    map<string[]> headerValues = {};
+    foreach string headerName in headers.getHeaderNames() {
+        string[]|http:HeaderNotFoundError values = headers.getHeaders(headerName);
+        if values is string[] {
+            headerValues[headerName.toLowerAscii()] = values;
+        }
+    }
+    return headerValues;
+}
+
 # Determines the effective session mode based on configuration and request context.
 #
 # + config - Service configuration
 # + headers - HTTP request headers
 # + requestMethod - The MCP request method (optional, used for AUTO mode logic)
 # + return - Effective session mode to use
-isolated function determineEffectiveSessionMode(ServiceConfiguration config, http:Headers headers, RequestMethod? requestMethod = ()) returns SessionMode {
+isolated function determineEffectiveSessionMode(StreamableHttpServiceConfiguration config, http:Headers headers, RequestMethod? requestMethod = ()) returns SessionMode {
     SessionMode configuredMode = config.sessionMode;
 
     if configuredMode == STATEFUL || configuredMode == STATELESS {

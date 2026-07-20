@@ -598,14 +598,42 @@ public type ServerOptions record {|
     boolean enforceStrictCapabilities?;
 |};
 
-# Configuration for MCP service that defines server capabilities, metadata, and transport options.
+# Transport-agnostic configuration for an MCP service, defining server metadata and options.
 public type ServiceConfiguration record {|
-    # HTTP service configuration for the underlying transport
-    http:HttpServiceConfig httpConfig = {};
     # Server implementation information
     Implementation info;
     # Optional server configuration options
     ServerOptions options?;
+    # HTTP service configuration for the underlying transport.
+    #
+    # # Deprecated
+    # HTTP configuration is transport-specific. Use the `httpConfig` field of the
+    # `@mcp:StreamableHttpServiceConfig` annotation on an `mcp:StreamableHttpService` instead.
+    @deprecated
+    http:HttpServiceConfig httpConfig = {};
+    # Controls the session management mode for the transport.
+    # - STATEFUL → Sessions are managed by the transport with session IDs
+    # - STATELESS → No session management, each request is independent
+    # - AUTO → Automatically determined based on client initialization behavior (default)
+    #
+    # # Deprecated
+    # Session management is transport-specific. Use the `sessionMode` field of the
+    # `@mcp:StreamableHttpServiceConfig` annotation on an `mcp:StreamableHttpService` instead.
+    @deprecated
+    SessionMode sessionMode = AUTO;
+|};
+
+# Annotation to provide configuration to MCP services.
+public annotation ServiceConfiguration ServiceConfig on service;
+
+# Configuration for an MCP service exposed over the Streamable HTTP transport.
+public type StreamableHttpServiceConfiguration record {|
+    # Server implementation information
+    Implementation info;
+    # Optional server configuration options
+    ServerOptions options?;
+    # HTTP service configuration for the underlying transport
+    http:HttpServiceConfig httpConfig = {};
     # Controls the session management mode for the transport.
     # - STATEFUL → Sessions are managed by the transport with session IDs
     # - STATELESS → No session management, each request is independent
@@ -613,16 +641,34 @@ public type ServiceConfiguration record {|
     SessionMode sessionMode = AUTO;
 |};
 
-# Annotation to provide service configuration to MCP services.
-public annotation ServiceConfiguration ServiceConfig on service;
+# Annotation to provide configuration to Streamable HTTP MCP services.
+public annotation StreamableHttpServiceConfiguration StreamableHttpServiceConfig on service;
 
-# Defines an MCP service interface that handles incoming MCP requests.
+# Defines a transport-agnostic MCP service interface that handles incoming MCP requests with
+# manual control over tool listing and invocation.
 public type AdvancedService distinct service object {
     remote isolated function onListTools() returns ListToolsResult|ServerError;
     remote isolated function onCallTool(CallToolParams params, Session? session = ()) returns CallToolResult|ServerError;
 };
-
-# Defines a basic mcp service interface that handles incoming mcp requests.
+ 
+# Defines a transport-agnostic basic MCP service interface. Tools are declared as `remote`
+# functions and cannot access transport-specific request information.
 public type Service distinct service object {
 
+};
+
+# Defines a basic MCP service interface exposed over the Streamable HTTP transport. Tool
+# `remote` functions may additionally bind HTTP request information (e.g. `@http:Header`
+# parameters, an `http:Headers` parameter, or an `http:Request` parameter).
+public type StreamableHttpService distinct service object {
+
+};
+
+# Defines an MCP service interface exposed over the Streamable HTTP transport with manual control
+# over tool listing and invocation. The service must declare `onListTools` and `onCallTool` `remote`
+# methods. In addition to `mcp:CallToolParams` and an optional `mcp:Session`, these methods may bind
+# transport-specific request information the same way `mcp:StreamableHttpService` tools can — via
+# `@http:Header` parameters, an `http:Headers` parameter, and/or an `http:Request` parameter. The
+# compiler plugin validates the shape of these methods.
+public type StreamableHttpAdvancedService distinct service object {
 };

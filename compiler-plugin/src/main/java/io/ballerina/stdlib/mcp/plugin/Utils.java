@@ -20,15 +20,19 @@ package io.ballerina.stdlib.mcp.plugin;
 
 import io.ballerina.compiler.api.SemanticModel;
 import io.ballerina.compiler.api.symbols.AnnotationSymbol;
+import io.ballerina.compiler.api.symbols.ArrayTypeSymbol;
 import io.ballerina.compiler.api.symbols.ConstantSymbol;
 import io.ballerina.compiler.api.symbols.Documentable;
 import io.ballerina.compiler.api.symbols.FunctionSymbol;
 import io.ballerina.compiler.api.symbols.FunctionTypeSymbol;
+import io.ballerina.compiler.api.symbols.IntersectionTypeSymbol;
 import io.ballerina.compiler.api.symbols.ParameterSymbol;
+import io.ballerina.compiler.api.symbols.RecordTypeSymbol;
 import io.ballerina.compiler.api.symbols.ServiceDeclarationSymbol;
 import io.ballerina.compiler.api.symbols.Symbol;
 import io.ballerina.compiler.api.symbols.SymbolKind;
 import io.ballerina.compiler.api.symbols.TypeDescKind;
+import io.ballerina.compiler.api.symbols.TypeReferenceTypeSymbol;
 import io.ballerina.compiler.api.symbols.TypeSymbol;
 import io.ballerina.compiler.api.symbols.UnionTypeSymbol;
 import io.ballerina.compiler.api.values.ConstantValue;
@@ -55,15 +59,36 @@ import java.util.Optional;
  * Util class for the compiler plugin.
  */
 public class Utils {
+
     public static final String BALLERINA_ORG = "ballerina";
     public static final String TOOL_ANNOTATION_NAME = "Tool";
     public static final String MCP_PACKAGE_NAME = "mcp";
     public static final String MCP_BASIC_SERVICE_NAME = "Service";
+    public static final String STREAMABLE_HTTP_BASIC_SERVICE_NAME = "StreamableHttpService";
+    public static final String STREAMABLE_HTTP_ADVANCED_SERVICE_NAME = "StreamableHttpAdvancedService";
     public static final String SESSION_TYPE_NAME = "Session";
     public static final String META_TYPE_NAME = "Meta";
+    public static final String CALL_TOOL_PARAMS_TYPE_NAME = "CallToolParams";
+    public static final String CALL_TOOL_RESULT_TYPE_NAME = "CallToolResult";
+    public static final String LIST_TOOLS_RESULT_TYPE_NAME = "ListToolsResult";
+    public static final String HTTP_PACKAGE_NAME = "http";
+    public static final String HEADERS_TYPE_NAME = "Headers";
+    public static final String REQUEST_TYPE_NAME = "Request";
+    public static final String HEADER_ANNOTATION_NAME = "Header";
     public static final String UNKNOWN_SYMBOL = "unknown";
     public static final String SERVICE_CONFIG_ANNOTATION_NAME = "ServiceConfig";
+    public static final String STREAMABLE_HTTP_SERVICE_CONFIG_ANNOTATION_NAME = "StreamableHttpServiceConfig";
     public static final String SESSION_MODE_FIELD = "sessionMode";
+
+    // Human-readable lists of supported parameter types, used in the INVALID_PARAMETER_TYPE diagnostic.
+    public static final String BASIC_TOOL_SUPPORTED_PARAM_TYPES =
+            "'anydata' tool parameters, a first 'mcp:Session' parameter, a last 'mcp:Meta' parameter, "
+                    + "an 'http:Headers' parameter, an 'http:Request' parameter, or '@http:Header' parameters";
+    public static final String ADVANCED_SUPPORTED_PARAM_TYPES =
+            "'mcp:CallToolParams', 'mcp:Session', 'http:Headers', 'http:Request', or an '@http:Header' parameter";
+    // 'onListTools' does not accept 'mcp:CallToolParams' or 'mcp:Session'.
+    public static final String ADVANCED_LIST_TOOLS_SUPPORTED_PARAM_TYPES =
+            "'http:Headers', 'http:Request', or an '@http:Header' parameter";
 
     public enum SessionMode {
         STATEFUL("stateful"),
@@ -109,6 +134,12 @@ public class Utils {
                 && BALLERINA_ORG.equals(symbol.getModule().get().id().orgName());
     }
 
+    private static boolean isHttpModuleSymbol(Symbol symbol) {
+        return symbol.getModule().isPresent()
+                && HTTP_PACKAGE_NAME.equals(symbol.getModule().get().id().moduleName())
+                && BALLERINA_ORG.equals(symbol.getModule().get().id().orgName());
+    }
+
     public static String getParameterDescription(FunctionSymbol functionSymbol, String parameterName) {
         if (functionSymbol.documentation().isEmpty()
                 || functionSymbol.documentation().get().description().isEmpty()) {
@@ -128,7 +159,6 @@ public class Utils {
     public static String escapeDoubleQuotes(String input) {
         return input.replace("\"", "\\\"");
     }
-
 
     public static String addDoubleQuotes(String input) {
         return "\"" + input + "\"";
@@ -166,10 +196,28 @@ public class Utils {
                 .anyMatch(Utils::isListenerFromMcpModule);
 
         boolean isServiceType = serviceSymbol.typeDescriptor()
-                .flatMap(type -> type.getName().map(MCP_BASIC_SERVICE_NAME::equals))
+                .flatMap(TypeSymbol::getName)
+                .map(name -> MCP_BASIC_SERVICE_NAME.equals(name)
+                        || STREAMABLE_HTTP_BASIC_SERVICE_NAME.equals(name))
                 .orElse(false);
 
         return isFromMcpModule && isServiceType;
+    }
+
+    /**
+     * Returns whether the service enclosing the given remote function is an `mcp:StreamableHttpService` — the only
+     * basic service type whose tools may bind transport-specific (HTTP) request information.
+     */
+    static boolean isStreamableHttpService(FunctionDefinitionNode functionDefinitionNode,
+                                           SemanticModel semanticModel) {
+        Optional<Symbol> parentSymbol = semanticModel.symbol(functionDefinitionNode.parent());
+        if (parentSymbol.isEmpty() || parentSymbol.get().kind() != SymbolKind.SERVICE_DECLARATION) {
+            return false;
+        }
+        return ((ServiceDeclarationSymbol) parentSymbol.get()).typeDescriptor()
+                .flatMap(TypeSymbol::getName)
+                .map(STREAMABLE_HTTP_BASIC_SERVICE_NAME::equals)
+                .orElse(false);
     }
 
     public static boolean isAnydataType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
@@ -191,6 +239,8 @@ public class Utils {
         var parameterSymbolList = functionTypeSymbol.params().get();
         boolean hasSessionParam = false;
         boolean hasMetaParam = false;
+        boolean hasHeadersParam = false;
+        boolean hasRequestParam = false;
 
         for (int i = 0; i < parameterSymbolList.size(); i++) {
             ParameterSymbol parameterSymbol = parameterSymbolList.get(i);
@@ -200,7 +250,54 @@ public class Utils {
             boolean isSessionType = isSessionType(parameterType);
             boolean isMetaParam = isMetaParameter(parameterType);
 
-            if (isSessionType) {
+            // Header binding, http:Headers, and http:Request parameters expose transport-specific
+            // (HTTP) request information, so they are only allowed in an mcp:StreamableHttpService.
+            // (The type system separately guarantees an mcp:StreamableHttpService can only be
+            // attached to an mcp:StreamableHttpListener.)
+            boolean isHttpBoundParam = hasHttpHeaderAnnotation(parameterSymbol) || isHttpHeadersType(parameterType)
+                    || isHttpRequestType(parameterType);
+            if (isHttpBoundParam && !isStreamableHttpService(functionDefinitionNode, context.semanticModel())) {
+                Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                        CompilationDiagnostic.TRANSPORT_SPECIFIC_PARAM_NOT_ALLOWED,
+                        parameterSymbol.getLocation().orElse(alternativeLocation),
+                        functionName, parameterName);
+                context.reportDiagnostic(diagnostic);
+                return false;
+            }
+
+            if (hasHttpHeaderAnnotation(parameterSymbol)) {
+                if (!isValidHeaderParamType(parameterType, context)) {
+                    Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                            CompilationDiagnostic.INVALID_HEADER_PARAMETER_TYPE,
+                            parameterSymbol.getLocation().orElse(alternativeLocation),
+                            functionName, parameterName);
+                    context.reportDiagnostic(diagnostic);
+                    return false;
+                }
+                continue;
+            }
+
+            if (isHttpHeadersType(parameterType)) {
+                if (hasHeadersParam) {
+                    Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                            CompilationDiagnostic.DUPLICATE_PARAMETER,
+                            parameterSymbol.getLocation().orElse(alternativeLocation),
+                            functionName, parameterName, HTTP_PACKAGE_NAME + ":" + HEADERS_TYPE_NAME);
+                    context.reportDiagnostic(diagnostic);
+                    return false;
+                }
+                hasHeadersParam = true;
+            } else if (isHttpRequestType(parameterType)) {
+                if (hasRequestParam) {
+                    Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
+                            CompilationDiagnostic.DUPLICATE_PARAMETER,
+                            parameterSymbol.getLocation().orElse(alternativeLocation),
+                            functionName, parameterName, HTTP_PACKAGE_NAME + ":" + REQUEST_TYPE_NAME);
+                    context.reportDiagnostic(diagnostic);
+                    return false;
+                }
+                hasRequestParam = true;
+            } else if (isSessionType) {
                 if (hasSessionParam) {
                     Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
                             CompilationDiagnostic.SESSION_PARAM_MUST_BE_FIRST,
@@ -263,7 +360,7 @@ public class Utils {
                 Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
                         CompilationDiagnostic.INVALID_PARAMETER_TYPE,
                         parameterSymbol.getLocation().orElse(alternativeLocation),
-                        functionName, parameterName);
+                        functionName, parameterName, BASIC_TOOL_SUPPORTED_PARAM_TYPES);
                 context.reportDiagnostic(diagnostic);
                 return false;
             }
@@ -274,6 +371,11 @@ public class Utils {
 
     static boolean isSessionType(TypeSymbol typeSymbol) {
         return SESSION_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
+                && isMcpModuleSymbol(typeSymbol);
+    }
+
+    static boolean isCallToolParamsType(TypeSymbol typeSymbol) {
+        return CALL_TOOL_PARAMS_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
                 && isMcpModuleSymbol(typeSymbol);
     }
 
@@ -329,6 +431,99 @@ public class Utils {
         return false;
     }
 
+    static boolean isHttpHeadersType(TypeSymbol typeSymbol) {
+        return HEADERS_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
+                && isHttpModuleSymbol(typeSymbol);
+    }
+
+    static boolean isHttpRequestType(TypeSymbol typeSymbol) {
+        return REQUEST_TYPE_NAME.equals(typeSymbol.getName().orElse(""))
+                && isHttpModuleSymbol(typeSymbol);
+    }
+
+    static boolean hasHttpHeaderAnnotation(ParameterSymbol parameterSymbol) {
+        return parameterSymbol.annotations().stream()
+                .anyMatch(annotation -> HEADER_ANNOTATION_NAME.equals(annotation.getName().orElse(""))
+                        && isHttpModuleSymbol(annotation));
+    }
+
+    /**
+     * Validates the type of a '@http:Header' annotated parameter consistently with http services: 'string', 'int',
+     * 'float', 'decimal', 'boolean', arrays of those types, their nilable variants, or a closed record consisting of
+     * those types.
+     */
+    static boolean isValidHeaderParamType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
+        if (isValidHeaderValueType(typeSymbol, context)) {
+            return true;
+        }
+        TypeSymbol rawType = getRawType(getNonNilType(typeSymbol));
+        if (rawType instanceof RecordTypeSymbol recordTypeSymbol) {
+            if (recordTypeSymbol.restTypeDescriptor().isPresent()) {
+                return false;
+            }
+            return recordTypeSymbol.fieldDescriptors().values().stream()
+                    .allMatch(field -> isValidHeaderValueType(field.typeDescriptor(), context));
+        }
+        return false;
+    }
+
+    private static boolean isValidHeaderValueType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
+        TypeSymbol rawType = getRawType(typeSymbol);
+        if (rawType.typeKind() == TypeDescKind.UNION) {
+            // Consistent with http: a union is valid only when all its non-nil members share
+            // a single basic type (covers nilable variants, enums, and finite string unions)
+            var nonNilMembers = ((UnionTypeSymbol) rawType).memberTypeDescriptors().stream()
+                    .filter(member -> member.typeKind() != TypeDescKind.NIL)
+                    .toList();
+            if (nonNilMembers.isEmpty()) {
+                return false;
+            }
+            if (nonNilMembers.size() == 1) {
+                return isValidHeaderValueType(nonNilMembers.getFirst(), context);
+            }
+            var types = context.semanticModel().types();
+            for (TypeSymbol basicType : new TypeSymbol[]{types.STRING, types.INT, types.FLOAT,
+                    types.DECIMAL, types.BOOLEAN}) {
+                if (nonNilMembers.stream().allMatch(member -> member.subtypeOf(basicType))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (rawType.typeKind() == TypeDescKind.ARRAY) {
+            return isValidHeaderValueType(((ArrayTypeSymbol) rawType).memberTypeDescriptor(), context);
+        }
+        return isBasicType(rawType, context);
+    }
+
+    private static boolean isBasicType(TypeSymbol typeSymbol, SyntaxNodeAnalysisContext context) {
+        var types = context.semanticModel().types();
+        TypeSymbol rawType = getRawType(typeSymbol);
+        return rawType.subtypeOf(types.STRING) || rawType.subtypeOf(types.INT)
+                || rawType.subtypeOf(types.FLOAT) || rawType.subtypeOf(types.DECIMAL)
+                || rawType.subtypeOf(types.BOOLEAN);
+    }
+
+    private static TypeSymbol getNonNilType(TypeSymbol typeSymbol) {
+        TypeSymbol rawType = getRawType(typeSymbol);
+        if (rawType.typeKind() != TypeDescKind.UNION) {
+            return typeSymbol;
+        }
+        var nonNilMembers = ((UnionTypeSymbol) rawType).memberTypeDescriptors().stream()
+                .filter(member -> member.typeKind() != TypeDescKind.NIL)
+                .toList();
+        return nonNilMembers.size() == 1 ? nonNilMembers.get(0) : typeSymbol;
+    }
+
+    private static TypeSymbol getRawType(TypeSymbol typeSymbol) {
+        if (typeSymbol.typeKind() == TypeDescKind.INTERSECTION) {
+            return getRawType(((IntersectionTypeSymbol) typeSymbol).effectiveTypeDescriptor());
+        }
+        return typeSymbol.typeKind() == TypeDescKind.TYPE_REFERENCE
+                ? getRawType(((TypeReferenceTypeSymbol) typeSymbol).typeDescriptor())
+                : typeSymbol;
+    }
+
     private static SessionMode getSessionMode(FunctionDefinitionNode functionDefinitionNode,
                                               SemanticModel semanticModel) {
         ServiceDeclarationNode serviceNode = (ServiceDeclarationNode) functionDefinitionNode.parent();
@@ -336,20 +531,36 @@ public class Utils {
             return SessionMode.AUTO;
         }
 
-        // Find the MCP ServiceConfig annotation
-        AnnotationNode serviceConfigAnnotation = null;
-        for (AnnotationNode annotation : serviceNode.metadata().get().annotations()) {
-            if (isMcpServiceConfigAnnotation(annotation)) {
-                serviceConfigAnnotation = annotation;
-                break;
-            }
+        // The transport-specific @mcp:StreamableHttpConfig annotation takes precedence over
+        // the deprecated sessionMode field of @mcp:ServiceConfig
+        AnnotationNode transportConfigAnnotation =
+                findMcpAnnotation(serviceNode, STREAMABLE_HTTP_SERVICE_CONFIG_ANNOTATION_NAME);
+        if (transportConfigAnnotation != null) {
+            return getSessionModeFieldValue(transportConfigAnnotation, semanticModel);
         }
 
-        if (serviceConfigAnnotation == null || serviceConfigAnnotation.annotValue().isEmpty()) {
+        AnnotationNode serviceConfigAnnotation = findMcpAnnotation(serviceNode, SERVICE_CONFIG_ANNOTATION_NAME);
+        if (serviceConfigAnnotation != null) {
+            return getSessionModeFieldValue(serviceConfigAnnotation, semanticModel);
+        }
+        return SessionMode.AUTO;
+    }
+
+    private static AnnotationNode findMcpAnnotation(ServiceDeclarationNode serviceNode, String annotationName) {
+        for (AnnotationNode annotation : serviceNode.metadata().get().annotations()) {
+            if (isMcpAnnotation(annotation, annotationName)) {
+                return annotation;
+            }
+        }
+        return null;
+    }
+
+    private static SessionMode getSessionModeFieldValue(AnnotationNode annotationNode, SemanticModel semanticModel) {
+        if (annotationNode.annotValue().isEmpty()) {
             return SessionMode.AUTO;
         }
 
-        SeparatedNodeList<MappingFieldNode> fields = serviceConfigAnnotation.annotValue().get().fields();
+        SeparatedNodeList<MappingFieldNode> fields = annotationNode.annotValue().get().fields();
         for (MappingFieldNode field : fields) {
             if (field.kind() == SyntaxKind.SPECIFIC_FIELD) {
                 SpecificFieldNode specificField = (SpecificFieldNode) field;
@@ -395,7 +606,7 @@ public class Utils {
         return SessionMode.AUTO;
     }
 
-    private static boolean isMcpServiceConfigAnnotation(AnnotationNode annotation) {
+    private static boolean isMcpAnnotation(AnnotationNode annotation, String annotationName) {
         if (annotation.annotReference().kind() != SyntaxKind.QUALIFIED_NAME_REFERENCE) {
             return false;
         }
@@ -404,7 +615,7 @@ public class Utils {
         String modulePrefix = qualifiedRef.modulePrefix().text();
         String identifier = qualifiedRef.identifier().text();
 
-        return MCP_PACKAGE_NAME.equals(modulePrefix) && SERVICE_CONFIG_ANNOTATION_NAME.equals(identifier);
+        return MCP_PACKAGE_NAME.equals(modulePrefix) && annotationName.equals(identifier);
     }
 
     private static boolean isListenerFromMcpModule(TypeSymbol typeSymbol) {
