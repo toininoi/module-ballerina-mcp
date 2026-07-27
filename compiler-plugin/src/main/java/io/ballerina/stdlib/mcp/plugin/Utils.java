@@ -82,7 +82,7 @@ public class Utils {
 
     // Human-readable lists of supported parameter types, used in the INVALID_PARAMETER_TYPE diagnostic.
     public static final String BASIC_TOOL_SUPPORTED_PARAM_TYPES =
-            "'anydata' tool parameters, a first 'mcp:Session' parameter, a last 'mcp:Meta' parameter, "
+            "'anydata' tool parameters, a first 'mcp:Session' parameter, an optional 'mcp:Meta' parameter, "
                     + "an 'http:Headers' parameter, an 'http:Request' parameter, or '@http:Header' parameters";
     public static final String ADVANCED_SUPPORTED_PARAM_TYPES =
             "'mcp:CallToolParams', 'mcp:Session', 'http:Headers', 'http:Request', or an '@http:Header' parameter";
@@ -329,18 +329,9 @@ public class Utils {
             } else if (isMetaParam) {
                 if (hasMetaParam) {
                     Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
-                            CompilationDiagnostic.META_PARAM_MUST_BE_LAST,
+                            CompilationDiagnostic.DUPLICATE_PARAMETER,
                             parameterSymbol.getLocation().orElse(alternativeLocation),
-                            functionName, parameterName);
-                    context.reportDiagnostic(diagnostic);
-                    return false;
-                }
-
-                if (i != parameterSymbolList.size() - 1) {
-                    Diagnostic diagnostic = CompilationDiagnostic.getDiagnostic(
-                            CompilationDiagnostic.META_PARAM_MUST_BE_LAST,
-                            parameterSymbol.getLocation().orElse(alternativeLocation),
-                            functionName, parameterName);
+                            functionName, parameterName, MCP_PACKAGE_NAME + ":" + META_TYPE_NAME);
                     context.reportDiagnostic(diagnostic);
                     return false;
                 }

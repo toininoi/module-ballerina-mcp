@@ -34,6 +34,7 @@ public enum CompilationDiagnostic {
     INVALID_PARAMETER_TYPE(DiagnosticMessage.ERROR_102, DiagnosticCode.MCP_102, ERROR),
     SESSION_PARAM_MUST_BE_FIRST(DiagnosticMessage.ERROR_103, DiagnosticCode.MCP_103, ERROR),
     SESSION_PARAM_NOT_ALLOWED_IN_STATELESS_MODE(DiagnosticMessage.ERROR_104, DiagnosticCode.MCP_104, ERROR),
+    // Retained for compatibility; Meta parameters are no longer required to be last.
     META_PARAM_MUST_BE_LAST(DiagnosticMessage.ERROR_105, DiagnosticCode.MCP_105, ERROR),
     META_PARAM_MUST_BE_OPTIONAL(DiagnosticMessage.ERROR_106, DiagnosticCode.MCP_106, ERROR),
     DUPLICATE_PARAMETER(DiagnosticMessage.ERROR_107, DiagnosticCode.MCP_107, ERROR),
