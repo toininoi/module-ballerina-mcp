@@ -212,4 +212,12 @@ public class CompilerPluginTest {
         Assert.assertFalse(diagnostic.message().contains("mcp:Session"),
                 "onListTools supported-types message must not list 'mcp:Session': " + diagnostic.message());
     }
+
+    @Test
+    public void testMetaParameterCanAppearBeforeDataParameters() {
+        DiagnosticResult diagnosticResult = compile("sample_package_18");
+        Assert.assertEquals(errorCount(diagnosticResult), 0,
+                "an optional mcp:Meta parameter must be accepted outside the final position: "
+                        + diagnosticResult.errors().toString());
+    }
 }

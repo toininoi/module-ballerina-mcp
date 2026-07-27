@@ -29,13 +29,14 @@ isolated service mcp:Service /mcp on metaListener {
     #
     # + name - The name to greet
     # + meta - Optional request metadata injected by the framework
+    # + greeting - Greeting to prepend to the name
     # + return - A greeting message that reflects whether metadata was received
-    isolated remote function greetWithMeta(string name, mcp:Meta? meta) returns string {
+    isolated remote function greetWithMeta(string name, mcp:Meta? meta, string greeting) returns string {
         if meta is mcp:Meta {
             anydata traceId = meta["traceId"];
-            return string `Hello, ${name}! trace=${traceId.toString()}`;
+            return string `${greeting}, ${name}! trace=${traceId.toString()}`;
         }
-        return string `Hello, ${name}! no-meta`;
+        return string `${greeting}, ${name}! no-meta`;
     }
 }
 
@@ -54,6 +55,8 @@ function testMetaToolSchemaExcludesMetaParam() returns error? {
     map<record {}> properties = check inputSchema.properties.ensureType();
     test:assertTrue(properties.hasKey("name"),
         msg = "Schema must include the 'name' data parameter");
+    test:assertTrue(properties.hasKey("greeting"),
+        msg = "Schema must include data parameters declared after mcp:Meta");
     test:assertFalse(properties.hasKey("meta"),
         msg = "The injected mcp:Meta parameter must not appear in the tool input schema");
 }
@@ -62,7 +65,7 @@ function testMetaToolSchemaExcludesMetaParam() returns error? {
 function testMetaReceivedOnServer() returns error? {
     mcp:CallToolResult result = check metaClient->callTool({
         name: "greetWithMeta",
-        arguments: {"name": "World"},
+        arguments: {"name": "World", "greeting": "Hello"},
         _meta: {"traceId": "trace-xyz"}
     });
 
@@ -81,7 +84,7 @@ function testMetaReceivedOnServer() returns error? {
 function testMetaIsNilWhenClientOmitsIt() returns error? {
     mcp:CallToolResult result = check metaClient->callTool({
         name: "greetWithMeta",
-        arguments: {"name": "World"}
+        arguments: {"name": "World", "greeting": "Hello"}
     });
 
     mcp:TextContent textContent = check result.content[0].ensureType();
