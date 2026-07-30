@@ -145,7 +145,7 @@ public class McpSourceModifier implements ModifierTask<SourceModifierContext> {
             ModuleMemberDeclarationNode member,
             Map<FunctionDefinitionNode, AnnotationNode> modifiedAnnotations) {
 
-        if (member.kind() == SERVICE_DECLARATION) {
+        if (member.kind() == SERVICE_DECLARATION && Utils.isMcpBasicService(semanticModel, member)) {
             return modifyServiceDeclaration(semanticModel, (ServiceDeclarationNode) member, modifiedAnnotations);
         }
         return member;
@@ -168,8 +168,6 @@ public class McpSourceModifier implements ModifierTask<SourceModifierContext> {
             FunctionDefinitionNode functionDefinitionNode = (FunctionDefinitionNode) member;
             AnnotationNode modifiedAnnotationNode = modifiedAnnotations.get(functionDefinitionNode);
             if (modifiedAnnotationNode == null) {
-                // Not a registered tool (e.g. an advanced service's 'onListTools'/'onCallTool'
-                // sharing this document). Re-emit it unchanged rather than dropping it.
                 modifiedMembers.add(member);
                 continue;
             }

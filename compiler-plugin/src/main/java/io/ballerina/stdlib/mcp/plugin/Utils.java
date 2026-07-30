@@ -42,6 +42,7 @@ import io.ballerina.compiler.syntax.tree.FunctionDefinitionNode;
 import io.ballerina.compiler.syntax.tree.IdentifierToken;
 import io.ballerina.compiler.syntax.tree.MappingFieldNode;
 import io.ballerina.compiler.syntax.tree.MetadataNode;
+import io.ballerina.compiler.syntax.tree.Node;
 import io.ballerina.compiler.syntax.tree.NodeList;
 import io.ballerina.compiler.syntax.tree.QualifiedNameReferenceNode;
 import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
@@ -184,13 +185,23 @@ public class Utils {
 
     public static boolean isMcpServiceFunction(SemanticModel semanticModel,
                                                FunctionDefinitionNode functionDefinitionNode) {
-        Optional<Symbol> parentSymbol = semanticModel.symbol(functionDefinitionNode.parent());
+        return isMcpBasicService(semanticModel, functionDefinitionNode.parent());
+    }
 
-        if (parentSymbol.isEmpty() || parentSymbol.get().kind() != SymbolKind.SERVICE_DECLARATION) {
+    /**
+     * Returns whether the given node is an `mcp:Service` or `mcp:StreamableHttpService` declaration attached to a
+     * listener from the mcp module. These are the only services whose tool methods the source modifier may rewrite;
+     * every other service declaration (including advanced mcp services and unrelated services such as `http:Service`)
+     * must be left untouched.
+     */
+    public static boolean isMcpBasicService(SemanticModel semanticModel, Node serviceNode) {
+        Optional<Symbol> serviceDeclSymbol = semanticModel.symbol(serviceNode);
+
+        if (serviceDeclSymbol.isEmpty() || serviceDeclSymbol.get().kind() != SymbolKind.SERVICE_DECLARATION) {
             return false;
         }
 
-        ServiceDeclarationSymbol serviceSymbol = (ServiceDeclarationSymbol) parentSymbol.get();
+        ServiceDeclarationSymbol serviceSymbol = (ServiceDeclarationSymbol) serviceDeclSymbol.get();
 
         boolean isFromMcpModule = serviceSymbol.listenerTypes().stream()
                 .anyMatch(Utils::isListenerFromMcpModule);
