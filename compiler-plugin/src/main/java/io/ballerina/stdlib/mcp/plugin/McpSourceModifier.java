@@ -168,6 +168,9 @@ public class McpSourceModifier implements ModifierTask<SourceModifierContext> {
             FunctionDefinitionNode functionDefinitionNode = (FunctionDefinitionNode) member;
             AnnotationNode modifiedAnnotationNode = modifiedAnnotations.get(functionDefinitionNode);
             if (modifiedAnnotationNode == null) {
+                // Not a registered tool (e.g. an advanced service's 'onListTools'/'onCallTool'
+                // sharing this document). Re-emit it unchanged rather than dropping it.
+                modifiedMembers.add(member);
                 continue;
             }
 
