@@ -92,3 +92,15 @@ function testBasicServiceToolStillWorksInSharedDocument() returns error? {
     test:assertEquals(tools.length(), 1);
     test:assertEquals(check tools[0].name, "greet");
 }
+
+@test:Config
+function testBasicServiceToolInvocationStillWorksInSharedDocument() returns error? {
+    // Listing the tool is not enough: the rewritten method must remain callable.
+    http:Request request = new;
+    request.setJsonPayload({jsonrpc: "2.0", id: 4, method: "tools/call",
+        params: {name: "greet", arguments: {name: "shared"}}});
+    request.setHeader("Accept", "application/json, text/event-stream");
+    http:Response response = check sharedDocBasicClient->post("/sharedBasic", request);
+    json result = check response.getJsonPayload();
+    test:assertEquals(check getRawTextResult(result), "hello shared");
+}
