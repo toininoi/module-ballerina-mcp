@@ -18,9 +18,10 @@
 
 package io.ballerina.stdlib.mcp.plugin.endpointyaml.generator;
 
+import io.ballerina.projects.BalCommand;
 import io.ballerina.projects.Package;
 import io.ballerina.projects.PackageCompilation;
-import io.ballerina.projects.plugins.CompilationAnalysisContext;
+import io.ballerina.projects.plugins.CompilerLifecycleEventContext;
 import io.ballerina.tools.diagnostics.Diagnostic;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -31,6 +32,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -186,10 +188,10 @@ public class EndpointsArtifactWriterTest {
     }
 
     /**
-     * A {@link CompilationAnalysisContext} stub that records reported diagnostics. Only {@code reportDiagnostic} is
-     * exercised by the writer; the other accessors are unused.
+     * A {@link CompilerLifecycleEventContext} stub that records reported diagnostics. Only
+     * {@code reportDiagnostic} is exercised by the writer; the other accessors are unused.
      */
-    private static final class CapturingContext implements CompilationAnalysisContext {
+    private static final class CapturingContext implements CompilerLifecycleEventContext {
         private final List<Diagnostic> diagnostics = new ArrayList<>();
 
         @Override
@@ -205,6 +207,16 @@ public class EndpointsArtifactWriterTest {
         @Override
         public void reportDiagnostic(Diagnostic diagnostic) {
             diagnostics.add(diagnostic);
+        }
+
+        @Override
+        public Optional<Path> getGeneratedArtifactPath() {
+            return Optional.empty();
+        }
+
+        @Override
+        public BalCommand balCommand() {
+            return null;
         }
     }
 }

@@ -20,11 +20,18 @@ package io.ballerina.stdlib.mcp.plugin;
 
 import io.ballerina.projects.plugins.CompilerPlugin;
 import io.ballerina.projects.plugins.CompilerPluginContext;
+import io.ballerina.stdlib.mcp.plugin.endpointyaml.generator.Endpoint;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class McpCompilerPlugin extends CompilerPlugin {
     @Override
     public void init(CompilerPluginContext compilerPluginContext) {
-        compilerPluginContext.addCodeAnalyzer(new McpCodeAnalyzer());
+        List<Endpoint> endpoints = Collections.synchronizedList(new ArrayList<>());
+        compilerPluginContext.addCodeAnalyzer(new McpCodeAnalyzer(endpoints));
+        compilerPluginContext.addCompilerLifecycleListener(new McpCompilerLifecycleListener(endpoints));
         compilerPluginContext.addCodeModifier(new McpCodeModifier());
     }
 }

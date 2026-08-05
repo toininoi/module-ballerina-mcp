@@ -20,8 +20,8 @@ package io.ballerina.stdlib.mcp.plugin;
 
 import io.ballerina.projects.BuildOptions;
 import io.ballerina.projects.Project;
-import io.ballerina.projects.plugins.AnalysisTask;
-import io.ballerina.projects.plugins.CompilationAnalysisContext;
+import io.ballerina.projects.plugins.CompilerLifecycleEventContext;
+import io.ballerina.projects.plugins.CompilerLifecycleTask;
 import io.ballerina.stdlib.mcp.plugin.endpointyaml.generator.Endpoint;
 import io.ballerina.stdlib.mcp.plugin.endpointyaml.generator.EndpointsArtifactWriter;
 import io.ballerina.tools.diagnostics.DiagnosticFactory;
@@ -36,11 +36,10 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Compilation-phase task that writes the endpoints collected from every MCP service into a single
- * {@code target/artifact/endpoints.yaml}. It runs once per package after all service declarations have been analyzed by
- * {@link McpCodeAnalyzerTask}.
+ * Code-generation-completed task that writes the endpoints collected from every MCP service into a single
+ * {@code target/artifact/endpoints.yaml}.
  */
-public class McpEndpointArtifactTask implements AnalysisTask<CompilationAnalysisContext> {
+public class McpEndpointArtifactTask implements CompilerLifecycleTask<CompilerLifecycleEventContext> {
 
     private final List<Endpoint> endpoints;
 
@@ -54,7 +53,7 @@ public class McpEndpointArtifactTask implements AnalysisTask<CompilationAnalysis
     }
 
     @Override
-    public void perform(CompilationAnalysisContext context) {
+    public void perform(CompilerLifecycleEventContext context) {
         if (context.compilation().diagnosticResult().hasErrors()) {
             return;
         }
@@ -81,7 +80,7 @@ public class McpEndpointArtifactTask implements AnalysisTask<CompilationAnalysis
         }
     }
 
-    private void reportWriteFailureDiagnostic(CompilationAnalysisContext context, IOException e) {
+    private void reportWriteFailureDiagnostic(CompilerLifecycleEventContext context, IOException e) {
         DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                 "ENDPOINTS_ARTIFACT_WRITE_FAILED",
                 "Failed to write the endpoint export artifact: " + e.getMessage(),

@@ -18,27 +18,25 @@
 
 package io.ballerina.stdlib.mcp.plugin;
 
-import io.ballerina.compiler.syntax.tree.SyntaxKind;
-import io.ballerina.projects.plugins.CodeAnalysisContext;
-import io.ballerina.projects.plugins.CodeAnalyzer;
+import io.ballerina.projects.plugins.CompilerLifecycleContext;
+import io.ballerina.projects.plugins.CompilerLifecycleListener;
 import io.ballerina.stdlib.mcp.plugin.endpointyaml.generator.Endpoint;
 
 import java.util.List;
 
 /**
- * Code analyzer that collects endpoint metadata from MCP service declarations.
+ * Registers the endpoint artifact task to run after code generation has completed.
  */
-public class McpCodeAnalyzer extends CodeAnalyzer {
+public class McpCompilerLifecycleListener extends CompilerLifecycleListener {
 
     private final List<Endpoint> endpoints;
 
-    McpCodeAnalyzer(List<Endpoint> endpoints) {
+    McpCompilerLifecycleListener(List<Endpoint> endpoints) {
         this.endpoints = endpoints;
     }
 
     @Override
-    public void init(CodeAnalysisContext codeAnalysisContext) {
-        codeAnalysisContext.addSyntaxNodeAnalysisTask(new McpCodeAnalyzerTask(endpoints),
-                SyntaxKind.SERVICE_DECLARATION);
+    public void init(CompilerLifecycleContext context) {
+        context.addCodeGenerationCompletedTask(new McpEndpointArtifactTask(endpoints));
     }
 }

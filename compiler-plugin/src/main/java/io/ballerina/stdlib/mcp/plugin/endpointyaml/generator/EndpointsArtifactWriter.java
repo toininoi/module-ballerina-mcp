@@ -22,7 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-import io.ballerina.projects.plugins.CompilationAnalysisContext;
+import io.ballerina.projects.plugins.CompilerLifecycleEventContext;
 import io.ballerina.tools.diagnostics.DiagnosticFactory;
 import io.ballerina.tools.diagnostics.DiagnosticInfo;
 import io.ballerina.tools.diagnostics.DiagnosticSeverity;
@@ -69,10 +69,10 @@ public class EndpointsArtifactWriter {
      *
      * @param targetDir    the project's target directory
      * @param mcpEndpoints the MCP endpoints extracted from the package
-     * @param context      the compilation analysis context used to report diagnostics
+     * @param context      the compiler lifecycle event context used to report diagnostics
      * @throws IOException if the artifact directory or file cannot be written
      */
-    public void write(Path targetDir, List<Endpoint> mcpEndpoints, CompilationAnalysisContext context)
+    public void write(Path targetDir, List<Endpoint> mcpEndpoints, CompilerLifecycleEventContext context)
             throws IOException {
         Path artifactDir = targetDir.resolve(ARTIFACT);
         Path endpointsFile = artifactDir.resolve(ENDPOINTS_FILE);
@@ -97,7 +97,7 @@ public class EndpointsArtifactWriter {
      *
      * @return the entries to preserve, or {@code null} if the file is not a recognizable endpoints document
      */
-    private List<Endpoint> readForeignEntries(Path endpointsFile, CompilationAnalysisContext context) {
+    private List<Endpoint> readForeignEntries(Path endpointsFile, CompilerLifecycleEventContext context) {
         JsonNode root;
         try {
             root = yamlMapper.readTree(endpointsFile.toFile());
@@ -141,7 +141,7 @@ public class EndpointsArtifactWriter {
         }
     }
 
-    private void reportUnreadableArtifact(CompilationAnalysisContext context, Path endpointsFile, String detail) {
+    private void reportUnreadableArtifact(CompilerLifecycleEventContext context, Path endpointsFile, String detail) {
         DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
                 "ENDPOINTS_ARTIFACT_NOT_READABLE",
                 "The existing endpoint artifact '" + endpointsFile + "' could not be parsed and will not be " +
