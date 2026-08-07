@@ -1,0 +1,67 @@
+/*
+ * Copyright (c) 2026, WSO2 LLC. (http://www.wso2.com).
+ *
+ * WSO2 LLC. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package io.ballerina.stdlib.mcp.plugin;
+
+import io.ballerina.projects.plugins.CompilerLifecycleEventContext;
+import io.ballerina.projects.plugins.CompilerLifecycleTask;
+import io.ballerina.stdlib.mcp.plugin.endpointyaml.generator.Endpoint;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.List;
+
+/**
+ * Publishes every endpoint collected by {@link McpCodeAnalyzerTask} during code analysis to Ballerina lang, once for
+ * the whole compilation after code generation has completed.
+ */
+public class EndpointMetadataTask implements CompilerLifecycleTask<CompilerLifecycleEventContext> {
+    private static final String ENDPOINT_META_INFO_CLASS = "io.ballerina.projects.plugins.EndpointMetaInfo";
+    private static final String ADD_ENDPOINT_METADATA_METHOD = "addEndpointMetadata";
+    private static final String EMPTY_STRING = "";
+
+    private final List<Endpoint> endpoints;
+
+    EndpointMetadataTask(List<Endpoint> endpoints) {
+        this.endpoints = endpoints;
+    }
+
+    @Override
+    public void perform(CompilerLifecycleEventContext context) {
+        if (context.compilation().diagnosticResult().hasErrors() || endpoints.isEmpty()) {
+            return;
+        }
+        for (Endpoint endpoint : endpoints) {
+            addEndpointMetadata(context, endpoint);
+        }
+    }
+
+    private void addEndpointMetadata(CompilerLifecycleEventContext context, Endpoint endpoint) {
+        try {
+            Class<?> endpointMetaInfoClass = Class.forName(ENDPOINT_META_INFO_CLASS);
+            Constructor<?> constructor = endpointMetaInfoClass.getConstructor(String.class, int.class, String.class,
+                    String.class, String.class);
+            Object endpointMetaInfo = constructor.newInstance(endpoint.getBasePath(), endpoint.getPort(),
+                    endpoint.getBasePath(), endpoint.getType(), EMPTY_STRING);
+            Method method = context.getClass().getMethod(ADD_ENDPOINT_METADATA_METHOD, endpointMetaInfoClass);
+            method.setAccessible(true);
+            method.invoke(context, endpointMetaInfo);
+        } catch (ReflectiveOperationException | SecurityException e) {
+            // Endpoint metadata export is supported only with newer Ballerina lang versions.
+        }
+    }
+}

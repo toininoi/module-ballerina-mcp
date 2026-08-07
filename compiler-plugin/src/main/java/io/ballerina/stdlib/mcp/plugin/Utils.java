@@ -49,9 +49,11 @@ import io.ballerina.compiler.syntax.tree.SeparatedNodeList;
 import io.ballerina.compiler.syntax.tree.ServiceDeclarationNode;
 import io.ballerina.compiler.syntax.tree.SpecificFieldNode;
 import io.ballerina.compiler.syntax.tree.SyntaxKind;
+import io.ballerina.projects.Module;
 import io.ballerina.projects.plugins.SyntaxNodeAnalysisContext;
 import io.ballerina.stdlib.mcp.plugin.diagnostics.CompilationDiagnostic;
 import io.ballerina.tools.diagnostics.Diagnostic;
+import io.ballerina.tools.diagnostics.DiagnosticSeverity;
 import io.ballerina.tools.diagnostics.Location;
 
 import java.util.Optional;
@@ -618,6 +620,61 @@ public class Utils {
         String identifier = qualifiedRef.identifier().text();
 
         return MCP_PACKAGE_NAME.equals(modulePrefix) && annotationName.equals(identifier);
+    }
+
+    /**
+     * Checks whether the semantic model in the given context contains any error-severity diagnostic.
+     *
+     * @param context the analysis context
+     * @return {@code true} if at least one diagnostic is of severity {@code ERROR}
+     */
+    public static boolean hasCompilationErrors(SyntaxNodeAnalysisContext context) {
+        for (Diagnostic diagnostic : context.semanticModel().diagnostics()) {
+            if (diagnostic.diagnosticInfo().severity() == DiagnosticSeverity.ERROR) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks whether the document under analysis is a test source of its module.
+     *
+     * @param context the analysis context
+     * @return {@code true} if the document is one of the module's test documents
+     */
+    public static boolean isInTestSource(SyntaxNodeAnalysisContext context) {
+        Module currentModule = context.currentPackage().module(context.moduleId());
+        return currentModule.testDocumentIds().contains(context.documentId());
+    }
+
+    /**
+     * Checks whether the service in the analysis context is bound to a {@code ballerina/mcp} listener.
+     *
+     * @param context the analysis context
+     * @return {@code true} if at least one listener type belongs to the {@code ballerina/mcp} module
+     */
+    public static boolean isMcpService(SyntaxNodeAnalysisContext context) {
+        if (!(context.node() instanceof ServiceDeclarationNode)) {
+            return false;
+        }
+        Optional<Symbol> symbol = context.semanticModel().symbol(context.node());
+        if (symbol.isEmpty() || !(symbol.get() instanceof ServiceDeclarationSymbol serviceSymbol)) {
+            return false;
+        }
+        return serviceSymbol.listenerTypes().stream().anyMatch(Utils::isMcpListenerType);
+    }
+
+    private static boolean isMcpListenerType(TypeSymbol listenerType) {
+        if (listenerType.typeKind() == TypeDescKind.UNION) {
+            return ((UnionTypeSymbol) listenerType).memberTypeDescriptors().stream()
+                    .anyMatch(Utils::isMcpListenerType);
+        }
+        if (listenerType.typeKind() == TypeDescKind.TYPE_REFERENCE) {
+            return ((TypeReferenceTypeSymbol) listenerType).typeDescriptor().getModule()
+                    .map(Utils::isMcpModuleSymbol).orElse(false);
+        }
+        return false;
     }
 
     private static boolean isListenerFromMcpModule(TypeSymbol typeSymbol) {
