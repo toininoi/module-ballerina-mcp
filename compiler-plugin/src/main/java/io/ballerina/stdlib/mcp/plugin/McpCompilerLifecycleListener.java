@@ -25,7 +25,7 @@ import io.ballerina.stdlib.mcp.plugin.endpointyaml.generator.Endpoint;
 import java.util.List;
 
 /**
- * Registers the endpoint artifact task to run after code generation has completed.
+ * Registers the endpoint metadata task to run after code generation has completed.
  */
 public class McpCompilerLifecycleListener extends CompilerLifecycleListener {
 
@@ -37,6 +37,6 @@ public class McpCompilerLifecycleListener extends CompilerLifecycleListener {
 
     @Override
     public void init(CompilerLifecycleContext context) {
-        context.addCodeGenerationCompletedTask(new McpEndpointArtifactTask(endpoints));
+        context.addCodeGenerationCompletedTask(new EndpointMetadataTask(endpoints));
     }
 }

@@ -49,8 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Extracts the endpoint metadata (port, base path, type) of an MCP service declaration. The extracted endpoints are
- * collected and written to a single {@code endpoints.yaml} artifact by {@code McpEndpointArtifactTask}.
+ * Extracts the endpoint metadata (port, base path, type) of an MCP service declaration.
  */
 public class EndpointYamlGenerator {
 

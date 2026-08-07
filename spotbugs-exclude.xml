@@ -20,4 +20,24 @@
         <Class name="io.ballerina.stdlib.mcp.plugin.RemoteFunctionAnalysisTask"/>
         <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
     </Match>
+    <Match>
+        <Class name="io.ballerina.stdlib.mcp.plugin.McpCodeAnalyzer"/>
+        <Field name="endpoints"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.ballerina.stdlib.mcp.plugin.McpCodeAnalyzerTask"/>
+        <Field name="endpoints"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.ballerina.stdlib.mcp.plugin.McpCompilerLifecycleListener"/>
+        <Field name="endpoints"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="io.ballerina.stdlib.mcp.plugin.EndpointMetadataTask"/>
+        <Field name="endpoints"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
 </FindBugsFilter>

@@ -38,7 +38,7 @@ import static io.ballerina.stdlib.mcp.plugin.Utils.isMcpService;
 
 /**
  * Analysis task that extracts the endpoint metadata of each MCP service when the {@code --export-endpoints} build
- * option is enabled, collecting it for {@link McpEndpointArtifactTask} to write to a single artifact.
+ * option is enabled, collecting it for {@link EndpointMetadataTask} to publish through Ballerina lang.
  */
 public class McpCodeAnalyzerTask implements AnalysisTask<SyntaxNodeAnalysisContext> {
 
